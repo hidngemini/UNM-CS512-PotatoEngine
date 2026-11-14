@@ -9,11 +9,11 @@
 //       - textures?
 //       - camera
 
-const TYPE_MATERIAL_SELECTOR = "material_selector";
-const TYPE_PROGRAM_SELECTOR = "program_selector";
-const TYPE_OBJECT_SELECTOR = "object_selector";
-const TYPE_3TUPLE_SELECTOR = "3tuple_selector";
-const TYPE_COLOR_SELECTOR = "color_selector";
+export const TYPE_MATERIAL_SELECTOR = "material_selector";
+export const TYPE_PROGRAM_SELECTOR = "program_selector";
+export const TYPE_OBJECT_SELECTOR = "object_selector";
+export const TYPE_3TUPLE_SELECTOR = "3tuple_selector";
+export const TYPE_COLOR_SELECTOR = "color_selector";
 
 // set of property types that cannot be inferred from
 // the type of the value in the object (or that im too lazy to check for)
@@ -26,6 +26,8 @@ const PROPERTY_TYPES = {
 // current target of the editor panel
 // could be an object, material, etc
 let activeTarget;
+// sync functions to call to update the panel readouts
+let activeSync;
 
 /**
  * Generate a function to update the property noted in the target
@@ -112,19 +114,29 @@ function parsePropertyType(target, property, forceType = undefined) {
 
 /**
  * Helper to grab the stuff from scene so its clean
- * 
- * @param {Scene} scene 
- * @param {string} type 
+ *
+ * @param {Scene} scene
+ * @param {string} type
  */
-function getOptionsFromScene(scene, type){
-  switch(type){
+function getOptionsFromScene(scene, type) {
+  switch (type) {
     case TYPE_MATERIAL_SELECTOR:
-      return scene.materials.entries()
+      return scene.materials.entries();
     case TYPE_OBJECT_SELECTOR:
-      return scene.objects.entries()
+      return scene.objects.entries();
     case TYPE_PROGRAM_SELECTOR:
-      return scene.programs.entries()
+      return scene.programs.entries();
   }
+}
+
+/**
+ * Turn a property name into a title cased string
+ * - TODO: be able to split camel cased property names
+ * @param {string} str
+ * @returns {string}
+ */
+function titleCase(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
 
 /**
@@ -146,23 +158,100 @@ function getOptionsFromScene(scene, type){
  * @param {*} properties
  * @param {Scene} scene
  */
-function createPanel(target, properties, scene) {
+export function createPanel(target, properties, scene) {
   const panel = document.getElementById("editor-panel-body");
   if (!panel) {
     throw new Error("Expected #editor-panel-body");
   }
   panel.innerHTML = "";
+  activeTarget = target;
+  activeSync = new Map();
 
   for (const config of parseProperties(properties)) {
+    const property = config.name;
+    if (!property) {
+      continue;
+    }
+
+    // TODO add the bootstrap grid css to common repo
+    //      so i can use it here easily, maybe add some
+    //      of the input styles?
+    const row = document.createElement("div");
+    row.classList.add("row");
+
+    const label = document.createElement("label");
+    label.innerText = titleCase(property);
+    row.appendChild(label);
+
+    let syncFunction;
+
+    const type = parsePropertyType(target, property, config.type);
+
+    if (
+      type == TYPE_MATERIAL_SELECTOR ||
+      type == TYPE_OBJECT_SELECTOR ||
+      type == TYPE_PROGRAM_SELECTOR
+    ) {
+    } else if (type == TYPE_3TUPLE_SELECTOR) {
+    } else {
+      // all the standard input items
+      const input = document.createElement("input");
+
+      if (type == "boolean") {
+        input.type = "checkbox";
+        input.addEventListener(
+          "input",
+          updatePropertyHandler(target, property),
+        );
+        syncFunction = () => {
+          input.checked = Boolean(target[property]);
+        };
+      } else if (type == "number") {
+        input.type = "number";
+        input.step = "any";
+        input.addEventListener(
+          "input",
+          updatePropertyHandler(target, property, undefined, Number),
+        );
+        syncFunction = () => {
+          input.value = target[property] ?? "";
+        };
+      } else if (type == "string") {
+        input.type = "text";
+        input.addEventListener(
+          "input",
+          updatePropertyHandler(target, property),
+        );
+        syncFunction = () => {
+          input.value = target[property] ?? "";
+        };
+      } else if (type == TYPE_COLOR_SELECTOR) {
+        input.type = "color";
+        input.addEventListener(
+          "input",
+          updatePropertyHandler(target, property, undefined),
+        );
+        syncFunction = () => {
+          input.value = target[property] ?? "";
+        };
+      }
+
+      row.appendChild(input);
+    }
+
+    panel.appendChild(row);
+    activeSync.set(property, syncFunction);
+    syncFunction();
   }
+
+  return panel;
 }
 
-function syncProperties(target) {
-  if (target !== activeTarget) {
-    return;
+/**
+ * Sync the currenty properties in the target
+ */
+function syncProperties() {
+  for (const sync of activeSync.values()) {
+    sync();
   }
-
-  // TODO: figure out a clean way to bind sync functions to every input
-  //       maybe a map of inpud id and sync functions? youd make them as
-  //       you go in createPanel above
 }
