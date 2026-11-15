@@ -1,7 +1,7 @@
-/** 
- * @module util/color 
+/**
+ * @module util/color
  * @description Utility functions to make managing color easier.
-*/
+ */
 
 /**
  * Quick helper to translate rbga to webgl rgba
@@ -21,7 +21,7 @@ export function rgba(r, g, b, a = undefined) {
  * Quick helper to translate rbg to webgl rgba
  *
  * ie 0-255 => 0-1
- * 
+ *
  * alpha value defaults to 1. Use rgba() for alpha options
  *
  * @param {Number} r  red value [0, 255]
@@ -38,7 +38,7 @@ export function rgb(r, g, b) {
  * should be convenient when start actually working with
  * color pallets like im supposed to later.
  *
- * @param {string} hexcode the hexcode string 
+ * @param {string} hexcode the hexcode string
  * @returns {number[]} 4 element array [r,g,b,a]
  */
 export function hex(hexcode) {
@@ -55,6 +55,22 @@ export function hex(hexcode) {
   }
 
   return rgba(r, g, b, a);
+}
+
+/**
+ * Convert webgl rgb value into hex string
+ * @param {number[]} rgb 
+ * @returns 
+ */
+export function rgbToHex(rgb) {
+  const toHex = (c) => {
+
+    const c255 = Math.floor(c * 255);
+    const hex = c255.toString(16);
+    return hex.length == 1 ? "0" + hex : hex;
+  };
+
+  return "#" + toHex(rgb[0]) + toHex(rgb[1]) + toHex(rgb[2]);
 }
 
 /**

@@ -1,5 +1,6 @@
 /** @module materials/PhongMaterial */
 
+import { TYPE_COLOR_SELECTOR } from "../controls/sceneEditor";
 import ShaderProgram from "../shaders/ShaderProgram";
 import { rgb } from "../util/color";
 import { vertColor } from "./common";
@@ -18,6 +19,14 @@ export default class PhongMaterial extends Material {
     specularExp: 16,
     alpha: 1,
   };
+
+  static EDITOR_PROPERTIES = [
+    { name: "ka", type: TYPE_COLOR_SELECTOR },
+    { name: "kd", type: TYPE_COLOR_SELECTOR },
+    { name: "ks", type: TYPE_COLOR_SELECTOR },
+    "specularExp",
+    "alpha",
+  ];
 
   /**
    * Create a (phong shader) material interface object.

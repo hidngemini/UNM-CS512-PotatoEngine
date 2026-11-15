@@ -1,6 +1,8 @@
 // Generalized interface to allow editing properties
 // of stuff in the scene on the fly.
 
+import { hex, rgbToHex } from "../util/color";
+
 // TODO: objects of interest:
 //       - sceneobject
 //       - materials
@@ -54,7 +56,8 @@ function updatePropertyHandler(
       val = cast(val);
     }
 
-    if (!!secondaryProperty) {
+    // 0 gets caught by my normal !! check
+    if (secondaryProperty !== undefined) {
       target[property][secondaryProperty] = val;
     } else {
       target[property] = val;
@@ -105,7 +108,7 @@ function parsePropertyType(target, property, forceType = undefined) {
       return "boolean";
     case "number":
       return "number";
-    case Array.isArray(value) && val.length == 3:
+    case Array.isArray(val) && val.length == 3:
       return TYPE_3TUPLE_SELECTOR;
   }
 
@@ -154,7 +157,7 @@ function titleCase(str) {
  * - TYPE_3TUPLE_SELECTOR => make a grouped set of 3 inputs (use the secondary property for array index)
  * - TYPE_COLOR_SELECTOR => color selector
  *
- * @param {*} target
+ * @param {Object} target
  * @param {*} properties
  * @param {Scene} scene
  */
@@ -166,6 +169,10 @@ export function createPanel(target, properties, scene) {
   panel.innerHTML = "";
   activeTarget = target;
   activeSync = new Map();
+
+  const header = document.createElement("h3");
+  header.innerText = `${target.constructor.name}: "${target.label}"`;
+  panel.appendChild(header);
 
   for (const config of parseProperties(properties)) {
     const property = config.name;
@@ -180,6 +187,7 @@ export function createPanel(target, properties, scene) {
     row.classList.add("row");
 
     const label = document.createElement("label");
+    label.classList.add("form-label");
     label.innerText = titleCase(property);
     row.appendChild(label);
 
@@ -192,10 +200,53 @@ export function createPanel(target, properties, scene) {
       type == TYPE_OBJECT_SELECTOR ||
       type == TYPE_PROGRAM_SELECTOR
     ) {
+      const select = document.createElement("select");
+      select.classList.add("form-control");
+      const options = getOptionsFromScene(scene, type);
+
+      options.forEach(([key, item]) => {
+        const option = document.createElement("option");
+        option.value = key;
+        option.innerText = item.label;
+        select.appendChild(option);
+      });
+
+      select.addEventListener("input", (event) => {
+        target[property] = event.target.value;
+      });
+
+      syncFunction = () => {
+        select.value = target[property];
+      };
+
+      row.appendChild(select);
     } else if (type == TYPE_3TUPLE_SELECTOR) {
+      const group = document.createElement("div");
+      group.classList.add("form-control");
+
+      for (let i = 0; i < 3; i++) {
+        const input = document.createElement("input");
+        input.classList.add("form-control");
+        input.type = "number";
+        input.step = "any";
+        input.addEventListener(
+          "input",
+          updatePropertyHandler(target, property, i, Number),
+        );
+        group.appendChild(input);
+      }
+
+      syncFunction = () => {
+        [...group.children].forEach((input, i) => {
+          input.value = target[property]?.[i] ?? "";
+        });
+      };
+
+      row.appendChild(group);
     } else {
       // all the standard input items
       const input = document.createElement("input");
+      input.classList.add("form-control");
 
       if (type == "boolean") {
         input.type = "checkbox";
@@ -229,10 +280,10 @@ export function createPanel(target, properties, scene) {
         input.type = "color";
         input.addEventListener(
           "input",
-          updatePropertyHandler(target, property, undefined),
+          updatePropertyHandler(target, property, undefined, hex),
         );
         syncFunction = () => {
-          input.value = target[property] ?? "";
+          input.value = rgbToHex(target[property]) ?? "";
         };
       }
 
@@ -250,7 +301,7 @@ export function createPanel(target, properties, scene) {
 /**
  * Sync the currenty properties in the target
  */
-function syncProperties() {
+export function syncProperties() {
   for (const sync of activeSync.values()) {
     sync();
   }

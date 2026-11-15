@@ -1,5 +1,6 @@
 /** @module materials/RayMaterial */
 
+import { TYPE_COLOR_SELECTOR } from "../controls/sceneEditor";
 import ShaderProgram from "../shaders/ShaderProgram";
 import { rgb } from "../util/color";
 import { vertColor } from "./common";
@@ -13,18 +14,29 @@ import Material from "./Material";
 export default class RayMaterial extends Material {
   static MATERIAL_BYTE_SIZE = 64;
 
+  static EDITOR_PROPERTIES = [
+    { name: "ka", type: TYPE_COLOR_SELECTOR },
+    { name: "kd", type: TYPE_COLOR_SELECTOR },
+    { name: "ks", type: TYPE_COLOR_SELECTOR },
+    "specularExp",
+    "alpha",
+    "refractiveIndex",
+    "reflectivity",
+    "materialIndex",
+  ];
+
   /**
    * Create a (ray tracing shader) material interface object.
    * @param {*} label
-   * @param {Object} [object={}] 
-   * @param {number[]} [object.ka=[0.1, 0.1, 0.1]] 
-   * @param {number[]} [object.kd=[0.1, 0.1, 0.1]] 
-   * @param {number[]} [object.ks=[0.1, 0.1, 0.1]] 
-   * @param {number} [object.specularExp=1] 
-   * @param {number} [object.alpha=1] 
-   * @param {number} [object.refractiveIndex=1] 
-   * @param {number} [object.reflectivity=0] 
-   * @param {number} [object.materialIndex=-1]  
+   * @param {Object} [object={}]
+   * @param {number[]} [object.ka=[0.1, 0.1, 0.1]]
+   * @param {number[]} [object.kd=[0.1, 0.1, 0.1]]
+   * @param {number[]} [object.ks=[0.1, 0.1, 0.1]]
+   * @param {number} [object.specularExp=1]
+   * @param {number} [object.alpha=1]
+   * @param {number} [object.refractiveIndex=1]
+   * @param {number} [object.reflectivity=0]
+   * @param {number} [object.materialIndex=-1]
    */
   constructor(
     label,
@@ -65,7 +77,7 @@ export default class RayMaterial extends Material {
    *
    * TODO can probably cache this to not recompute every time
    * maybe a dirty attribute on it or smth
-   * 
+   *
    * @param {DataView} view the dataview of the material block
    * @param {number} offset byte offset to the start of this material
    */

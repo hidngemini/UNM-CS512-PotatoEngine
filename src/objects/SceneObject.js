@@ -3,6 +3,11 @@
  */
 
 import {
+  TYPE_3TUPLE_SELECTOR,
+  TYPE_MATERIAL_SELECTOR,
+  TYPE_PROGRAM_SELECTOR,
+} from "../controls/sceneEditor";
+import {
   mat4Identity,
   mat4RotateX,
   mat4RotateY,
@@ -42,6 +47,17 @@ import PrimitiveObject from "./PrimitiveObject";
  * @alias module:objects/SceneObject
  */
 export default class SceneObject {
+  static EDITOR_PROPERTIES = [
+    { name: "position", type: TYPE_3TUPLE_SELECTOR },
+    { name: "rotation", type: TYPE_3TUPLE_SELECTOR },
+    { name: "scale", type: TYPE_3TUPLE_SELECTOR },
+    { name: "shouldDraw" },
+    { name: "programLabel", type: TYPE_PROGRAM_SELECTOR },
+    { name: "materialLabel", type: TYPE_MATERIAL_SELECTOR },
+    { name: "lightingCenter", type: TYPE_3TUPLE_SELECTOR },
+    "lightingRadius",
+  ];
+
   /**
    * Make an scene object (basic object to render)
    * @param {*} options
