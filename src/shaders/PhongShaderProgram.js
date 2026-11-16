@@ -2,6 +2,7 @@
  * @module shaders/PhongShaderProgram
  */
 
+import { TYPE_READ_ONLY } from "../controls/sceneEditor";
 import Light, { LIGHT_DIRECTIONAL, LIGHT_SPOT } from "../lights/Light";
 import { SceneObject } from "../objects";
 import { transformPoint } from "../util/transformations";
@@ -16,6 +17,12 @@ import ShaderProgram from "./ShaderProgram";
  * @alias module:shaders/PhongShaderProgram
  */
 export default class PhongShaderProgram extends ShaderProgram {
+    static EDITOR_PROPERTIES = [
+      "hasMaterial",
+      "hasLight",
+      { name: "maxLights", type: TYPE_READ_ONLY },
+      { name: "lightCount", type: TYPE_READ_ONLY }
+    ];
   /**
    * Create a new shader program
    * @param {*} label
@@ -37,6 +44,7 @@ export default class PhongShaderProgram extends ShaderProgram {
     this.hasMaterial = hasMaterial;
     this.maxLights = maxLights;
     this.lightBuffer;
+    this.lightCount = 0;
   }
 
   /**
@@ -61,6 +69,7 @@ export default class PhongShaderProgram extends ShaderProgram {
    * @param {number} count how many lights are currently in the scene
    */
   setLightCount(gl, count) {
+    this.lightCount = count;
     gl.uniform1i(this.uLightCount, count);
   }
 

@@ -2,6 +2,11 @@
  * @module lights/Light
  */
 
+import {
+  TYPE_3TUPLE_SELECTOR,
+  TYPE_COLOR_SELECTOR,
+  TYPE_READ_ONLY,
+} from "../controls/sceneEditor";
 import { rgba } from "../util/color";
 
 /**
@@ -26,6 +31,19 @@ export const LIGHT_DIRECTIONAL = 2;
  * @alias module:lights/Light
  */
 export default class Light {
+  static EDITOR_PROPERTIES = [
+    { name: "position", type: TYPE_3TUPLE_SELECTOR },
+    { name: "color", type: TYPE_COLOR_SELECTOR },
+    "intensity",
+    "type",
+    "attA",
+    "attB",
+    "attC",
+    { name: "radius", type: TYPE_READ_ONLY },
+    { name: "direction", type: TYPE_3TUPLE_SELECTOR },
+    "cutoff",
+    "spotExponent",
+  ];
   /**
    * Representation of a light source
    * @param {string} label

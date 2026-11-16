@@ -2,6 +2,7 @@
  * @module shaders/PhongShaderProgram
  */
 
+import { TYPE_READ_ONLY } from "../controls/sceneEditor";
 import Light, { LIGHT_DIRECTIONAL, LIGHT_SPOT } from "../lights/Light";
 import { RayMaterial } from "../materials";
 import { RayObject, SceneObject } from "../objects";
@@ -17,6 +18,26 @@ import ShaderProgram from "./ShaderProgram";
  * @alias module:shaders/PhongShaderProgram
  */
 export default class RayShaderProgram extends ShaderProgram {
+  static EDITOR_PROPERTIES = [
+    "hasMaterial",
+    "hasLight",
+    { name: "maxLights", type: TYPE_READ_ONLY },
+    { name: "maxObjects", type: TYPE_READ_ONLY },
+    { name: "maxMaterials", type: TYPE_READ_ONLY },
+    "u_time",
+    "u_resolution",
+    "u_maxBounces",
+    "u_ambientStrength",
+    "u_cameraOrbit",
+    "u_target",
+    "u_objectCount",
+    "u_lightCount",
+    "u_materialCount",
+    "u_raySamples",
+    "u_glassMode",
+    "u_maxShadowLayers",
+    "u_shadowMode",
+  ];
   /**
    * Create a new shader program
    *

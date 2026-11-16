@@ -1,5 +1,7 @@
 /** @module materials/Texture2D */
 
+import { TYPE_READ_ONLY } from "../controls/sceneEditor";
+
 /**
  * Convenience representation of a 2D texture
  * @class
@@ -21,6 +23,13 @@ export default class Texture2D {
    * @param {number[]} [options.placeholder=[128, 128, 255, 255]]
    * @param {*} [options.animated=false]
    */
+
+
+  static EDITOR_PROPERTIES = [
+    { name: "url", type: TYPE_READ_ONLY },
+    { name: "animated", type: TYPE_READ_ONLY },
+  ];
+
   constructor(
     gl,
     {
@@ -44,6 +53,7 @@ export default class Texture2D {
     this.wrapS = wrapS;
     this.wrapT = wrapT;
     this.animated = animated;
+    this.url = undefined;
 
     this.texture = gl.createTexture();
     if (!this.texture) {
@@ -76,9 +86,10 @@ export default class Texture2D {
 
   /**
    * Load the image at the url into this texture
-   * @param {string} url 
+   * @param {string} url
    */
   load(url) {
+    this.url = url
     return new Promise((resolve, reject) => {
       const image = new Image();
 
@@ -101,7 +112,7 @@ export default class Texture2D {
    * parse some valid source to the texture
    *
    * @param {TexImageSource} source
-   * @param {WebGL2RenderingContext} [gl=this._gl] 
+   * @param {WebGL2RenderingContext} [gl=this._gl]
    */
   upload(source, gl = this._gl) {
     if (!!source) {
@@ -190,7 +201,7 @@ export default class Texture2D {
   /**
    * bind this texture to a texture unit
    * @param {number} [unit=0] the unit
-   * @param {WebGL2RenderingContext} [gl=this._gl] 
+   * @param {WebGL2RenderingContext} [gl=this._gl]
    */
   bind(unit = 0, gl = this._gl) {
     // TODO can probably replace the refresh method
@@ -204,7 +215,7 @@ export default class Texture2D {
 
   /**
    * Clean up the allocated things
-   * @param {WebGL2RenderingContext} [gl=this._gl] 
+   * @param {WebGL2RenderingContext} [gl=this._gl]
    */
   dispose(gl = this._gl) {
     gl.deleteTexture(this.texture);

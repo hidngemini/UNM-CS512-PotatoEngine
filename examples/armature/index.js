@@ -6,7 +6,11 @@ import { rgb, rgba, hsv, hsvrad } from "../../src/util/color";
 import flight from "../../src/controls/flight";
 import { Armature } from "../../src/objects/armature";
 import { SceneObject } from "../../src/objects";
-import { createPanel, syncProperties } from "../../src/controls/sceneEditor";
+import {
+  createPanel,
+  makeEditorTabs,
+  syncProperties,
+} from "../../src/controls/sceneEditor";
 
 const scene = new Scene("glcanvas");
 scene.camera.move(0, 0, 0);
@@ -121,9 +125,9 @@ const cameraCB = flight.setupKeyboardControls(scene);
 function updateScene(dt) {
   cameraCB(dt);
 
-  armature.getJoint(1).rotation[0] +=  dt;
-  armature.getJoint(1).rotation[1] +=  dt;
-  armature.getJoint(1).rotation[2] +=  dt;
+  armature.getJoint(1).rotation[0] += dt;
+  armature.getJoint(1).rotation[1] += dt;
+  armature.getJoint(1).rotation[2] += dt;
 }
 
 /**
@@ -148,12 +152,13 @@ async function main() {
 
   flight.setupMouseControls(scene);
 
-
   // createPanel(armatureObject.children[0].children[1], SceneObject.EDITOR_PROPERTIES, scene)
-  createPanel(scene.getMaterial("flat"), PhongMaterial.EDITOR_PROPERTIES, scene)
+  // createPanel(scene.getMaterial("flat"), PhongMaterial.EDITOR_PROPERTIES, scene)
+
+  makeEditorTabs(scene);
 
   setInterval(() => {
-    syncProperties()
+    syncProperties();
     // console.log(armatureObject.children[0].children[1])
     scene.render();
   }, 30);

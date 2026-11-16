@@ -1,5 +1,7 @@
 /** @module materials/Material */
 
+import { TYPE_READ_ONLY } from "../controls/sceneEditor";
+
 /**
  * Convenience Interface class for basic shader materials
  *
@@ -7,6 +9,8 @@
  * @alias module:materials/Material
  */
 export default class Material {
+  static EDITOR_PROPERTIES = [{ name: "programLabel", type: TYPE_READ_ONLY }];
+
   /**
    * create a material instance
    * @param {string} label

@@ -14,6 +14,7 @@ import Light, { LIGHT_DIRECTIONAL, LIGHT_SPOT } from "../../src/lights/Light";
 import { rgb, rgba, hsv, hsvrad } from "../../src/util/color";
 import flight from "../../src/controls/flight";
 import TextureColorRamp from "../../src/materials/TextureColorRamp";
+import { makeEditorTabs, syncProperties } from "../../src/controls/sceneEditor";
 
 const matSelector = document.getElementById("material-selector");
 const mat2Selector = document.getElementById("material-selector-secondary");
@@ -382,11 +383,14 @@ async function main() {
 
   initSceneObjects();
 
+  makeEditorTabs(scene);
+
   flight.setupMouseControls(scene);
   flight.setupKeyboardControls(scene);
   attachListeners();
 
   setInterval(() => {
+    syncProperties()
     scene.render();
   }, 30);
 }

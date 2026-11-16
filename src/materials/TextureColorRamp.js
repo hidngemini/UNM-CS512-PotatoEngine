@@ -1,4 +1,5 @@
 /** @module materials/TextureColorRamp */
+import { TYPE_COLOR_SELECTOR, TYPE_READ_ONLY } from "../controls/sceneEditor";
 import Texture2D from "./Texture2D";
 
 /**
@@ -9,6 +10,12 @@ import Texture2D from "./Texture2D";
  * @alias module:materials/TextureColorRamp
  */
 export default class TextureColorRamp extends Texture2D {
+  static EDITOR_PROPERTIES = [
+    { name: "animated", type: TYPE_READ_ONLY },
+    { name: "colorStart", type: TYPE_COLOR_SELECTOR },
+    { name: "colorEnd", type: TYPE_COLOR_SELECTOR }
+  ];
+
   /**
    * Create a new TextureColorRamp
    * @param {WebGL2RenderingContext} gl

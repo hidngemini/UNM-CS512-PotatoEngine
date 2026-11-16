@@ -8,6 +8,7 @@ import {
 import flight from "../../src/controls/flight";
 import { RayObject } from "../../src/objects";
 import { RayMaterial } from "../../src/materials";
+import { makeEditorTabs, syncProperties } from "../../src/controls/sceneEditor";
 
 const SHADER_PROGRAM_RAY = "ray";
 
@@ -186,7 +187,10 @@ async function main() {
   initSceneObjects();
   setupInputControls();
 
+  makeEditorTabs(scene);
+
   setInterval(() => {
+    syncProperties()
     scene.render();
   }, 30);
 }

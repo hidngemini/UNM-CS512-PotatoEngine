@@ -3,6 +3,7 @@
  */
 
 import { Scene } from "..";
+import { TYPE_3TUPLE_SELECTOR, TYPE_MATERIAL_SELECTOR, TYPE_PROGRAM_SELECTOR } from "../controls/sceneEditor";
 import { mat4Identity } from "../util/transformations";
 import { vec4distance, scaleVec4, sumVec4 } from "../util/vec4";
 import SceneObject from "./SceneObject";
@@ -22,6 +23,30 @@ export default class RayObject extends SceneObject {
   static OBJECT_TYPE_PLANE = 5;
 
   static OBJECT_BYTE_SIZE = 112; // 16 + 16 + 16 + 64
+
+  static EDITOR_PROPERTIES = [
+    { name: "position", type: TYPE_3TUPLE_SELECTOR },
+    { name: "rotation", type: TYPE_3TUPLE_SELECTOR },
+    { name: "scale", type: TYPE_3TUPLE_SELECTOR },
+    { name: "shouldDraw" },
+    { name: "programLabel", type: TYPE_PROGRAM_SELECTOR },
+    { name: "materialLabel", type: TYPE_MATERIAL_SELECTOR },
+    { name: "lightingCenter", type: TYPE_3TUPLE_SELECTOR },
+    "lightingRadius",
+    "materialIndex",
+    "light",
+    "lightPower",
+    "radius",
+    "halfSize",
+    "height",
+    "width",
+    "depth",
+    "radiusMinor",
+    "bulge",
+    "faceted",
+    "faces",
+    "type",
+  ];
 
   /**
    * Make a new RayObject, a scene object meant to run in the
@@ -121,7 +146,7 @@ export default class RayObject extends SceneObject {
     // TODO update this based on the label if it exists
     this.materialIndex = materialIndex;
     this.light = light;
-    this.lightPower = lightPower
+    this.lightPower = lightPower;
 
     this.radius = radius;
     this.halfSize = halfSize;
@@ -215,7 +240,7 @@ export default class RayObject extends SceneObject {
         break;
     }
 
-    if(this.light){
+    if (this.light) {
       options.w = this.lightPower;
     }
 

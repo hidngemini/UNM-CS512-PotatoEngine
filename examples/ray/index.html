@@ -6,6 +6,7 @@
   <title>UNM CS 512: Template</title>
   <!-- general styles to load from COMMON-->
   <link href="../../common/styles.css" rel="stylesheet" />
+  <link href="../../common/bootstrap.css" rel="stylesheet" />
   <link href="../../common/navbar.css" rel="stylesheet" />
   <script defer src="../../common/navbar.js"></script>
 
@@ -55,60 +56,71 @@
       </div>
 
       <div class="controls">
-        <label>
-          Max Bounces
-          <input class="uniform-slider" name="u_maxBounces" value="3" type="range" max="32" min="0" step="1"></input>
-          <code id="u_maxBounces-value">3</code>
-        </label>
-        <label>
-          Ambient Strength
-          <input class="uniform-slider" name="u_ambientStrength" value="0.1" type="range" max="1" min="0"
-            step="0.05"></input>
-          <code id="u_ambientStrength-value">0.1</code>
-        </label>
-        <label>
-          Ray Samples
-          <input class="uniform-slider" name="u_raySamples" value="2" type="range" max="16" min="0" step="1"></input>
-          <code id="u_raySamples-value">2</code>
-        </label>
-        <label>
-          Shadow Layers
-          <input class="uniform-slider" name="u_maxShadowLayers" value="8" type="range" max="16" min="0" step="1"></input>
-          <code id="u_maxShadowLayers-value">8</code>
-        </label>
-        <!-- <label>
+        <div id="default-editor-controls">
+          <div class="controls mt-0">
+            <label>
+              Max Bounces
+              <input class="uniform-slider" name="u_maxBounces" value="3" type="range" max="32" min="0"
+                step="1"></input>
+              <code id="u_maxBounces-value">3</code>
+            </label>
+            <label>
+              Ambient Strength
+              <input class="uniform-slider" name="u_ambientStrength" value="0.1" type="range" max="1" min="0"
+                step="0.05"></input>
+              <code id="u_ambientStrength-value">0.1</code>
+            </label>
+            <label>
+              Ray Samples
+              <input class="uniform-slider" name="u_raySamples" value="2" type="range" max="16" min="0"
+                step="1"></input>
+              <code id="u_raySamples-value">2</code>
+            </label>
+            <label>
+              Shadow Layers
+              <input class="uniform-slider" name="u_maxShadowLayers" value="8" type="range" max="16" min="0"
+                step="1"></input>
+              <code id="u_maxShadowLayers-value">8</code>
+            </label>
+            <!-- <label>
           Shadow TIR
           <input class="uniform-slider" name="u_tirShadow" type="checkbox"></input>
         </label> -->
-        <label>
-          Main Light Power
-          <input id="lightPower" name="lightPower" value="3" type="range" max="200" min="0" step="1"></input>
-          <code id="lightPower-value">3</code>
-        </label>
-        <label>
-          Blue Glass IOR
-          <input id="blueGlassIOR" name="blueGlassIOR" value="2.42" type="range" max="5" min="1.01" step="0.01"></input>
-          <code id="blueGlassIOR-value">2.42</code>
-        </label>
+            <label>
+              Main Light Power
+              <input id="lightPower" name="lightPower" value="3" type="range" max="200" min="0" step="1"></input>
+              <code id="lightPower-value">3</code>
+            </label>
+            <label>
+              Blue Glass IOR
+              <input id="blueGlassIOR" name="blueGlassIOR" value="2.42" type="range" max="5" min="1.01"
+                step="0.01"></input>
+              <code id="blueGlassIOR-value">2.42</code>
+            </label>
 
-        <label>
-          Glass Mode
-          <select class="uniform-slider" name="u_glassMode">
-            <option value="0">Dominant Branch</option>
-            <option value="1">Contribution</option>
-            <option value="2">Monte Carlo</option>
-            <option value="3">Glass = Diffuse</option>
-          </select>
-        </label>
-        <label>
-          Shadow Mode
-          <select class="uniform-slider" name="u_shadowMode">
-            <option value="0">Fast</option>
-            <option value="1">Fast Glass</option>
-            <option value="2">Simple Glass</option>
-            <option value="3">TIR Glass</option>
-          </select>
-        </label>
+            <label>
+              Glass Mode
+              <select class="uniform-slider" name="u_glassMode">
+                <option value="0">Dominant Branch</option>
+                <option value="1">Contribution</option>
+                <option value="2">Monte Carlo</option>
+                <option value="3">Glass = Diffuse</option>
+              </select>
+            </label>
+            <label>
+              Shadow Mode
+              <select class="uniform-slider" name="u_shadowMode">
+                <option value="0">Fast</option>
+                <option value="1">Fast Glass</option>
+                <option value="2">Simple Glass</option>
+                <option value="3">TIR Glass</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div id="editor-panel-body">
+
+        </div>
       </div>
     </div>
 

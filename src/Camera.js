@@ -1,3 +1,4 @@
+import { TYPE_READ_ONLY } from "./controls/sceneEditor";
 import {
   perspective,
   mat4Translate,
@@ -13,6 +14,18 @@ import {
  * Camera operations wrapper class
  */
 class Camera {
+
+    static EDITOR_PROPERTIES = [
+      "x",
+      "y",
+      "z",
+      "fov",
+      "zNear",
+      "zFar",
+      "yaw",
+      "pitch",
+    ];
+  
   /**
    * Create a new camera
    * @param {number} aspect
@@ -40,6 +53,7 @@ class Camera {
     this.yaw = 0;
     this.pitch = 0;
 
+    this.label = "Scene Camera"
     this.fov = fov;
     this.aspect = aspect;
     this.zNear = zNear;

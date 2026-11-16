@@ -7,7 +7,7 @@ import { vertColor } from "./common";
 import Material from "./Material";
 
 /**
- * Convenience Interface class for phong shader materials
+ * Convenience Interface class for ray shader materials
  * @class
  * @alias module:materials/RayMaterial
  */

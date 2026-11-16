@@ -42,15 +42,15 @@ export function rgb(r, g, b) {
  * @returns {number[]} 4 element array [r,g,b,a]
  */
 export function hex(hexcode) {
-  hex = hexcode.replace("#", "");
+  let hexc = hexcode.replace("#", "");
 
-  const r = parseInt(hex.slice(0, 2), 16);
-  const g = parseInt(hex.slice(2, 4), 16);
-  const b = parseInt(hex.slice(4, 6), 16);
+  const r = parseInt(hexc.slice(0, 2), 16);
+  const g = parseInt(hexc.slice(2, 4), 16);
+  const b = parseInt(hexc.slice(4, 6), 16);
 
   let a = 1;
-  if (hex.length == 8) {
-    a = parseInt(hex.slice(6, 8), 16);
+  if (hexc.length == 8) {
+    a = parseInt(hexc.slice(6, 8), 16);
     a /= 255;
   }
 

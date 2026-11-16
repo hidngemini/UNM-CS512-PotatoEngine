@@ -16,6 +16,7 @@ import RenderPass from "./renderers/RenderPass";
 import { renderers } from ".";
 import { Texture2D, Material } from "./materials";
 import { RENDER_PASS_RAY } from "./renderers";
+import { TYPE_COLOR_SELECTOR, TYPE_READ_ONLY } from "./controls/sceneEditor";
 
 /**
  * Overall state management for a scene
@@ -32,11 +33,20 @@ import { RENDER_PASS_RAY } from "./renderers";
  * @alias module:Scene
  */
 export default class Scene {
+  static EDITOR_PROPERTIES = [
+    { name: "startTime", type: TYPE_READ_ONLY },
+    "time",
+    "rotationX",
+    "rotationY",
+    { name: "background", type: TYPE_COLOR_SELECTOR },
+  ];
+
   /**
    * Create a new scene using the provided canvas as the context
    * @param {string} canvasID the id of the canvas element
    */
   constructor(canvasID) {
+    this.label = canvasID;
     this.canvas = document.getElementById(canvasID);
     this.gl = this.canvas.getContext("webgl2");
 

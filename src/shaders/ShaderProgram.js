@@ -9,6 +9,7 @@
  * @alias module:shaders/ShaderProgram
  */
 export default class ShaderProgram {
+  static EDITOR_PROPERTIES = ["hasMaterial", "hasLight"];
   /**
    * Create a new shader program
    * @param {string} label the label to use for this program
