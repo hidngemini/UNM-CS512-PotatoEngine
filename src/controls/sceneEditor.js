@@ -17,6 +17,8 @@ export const TYPE_OBJECT_SELECTOR = "object_selector";
 export const TYPE_3TUPLE_SELECTOR = "3tuple_selector";
 export const TYPE_COLOR_SELECTOR = "color_selector";
 export const TYPE_READ_ONLY = "readonly";
+export const TYPE_IMAGE_URL = "image_url";
+export const TYPE_TEXTURED_MATERIAL_TEXTURES = "textured_mat_texture_map";
 
 // set of property types that cannot be inferred from
 // the type of the value in the object (or that im too lazy to check for)
@@ -28,6 +30,7 @@ const PROPERTY_TYPES = {
 
 // current target of the editor panel
 // could be an object, material, etc
+// the sync structure i landed on below can just bypass this tbh
 let activeTarget;
 // sync functions to call to update the panel readouts
 let activeSync;
@@ -235,6 +238,23 @@ export function createPanel(
       };
 
       control.appendChild(value);
+    } else if (type == TYPE_IMAGE_URL) {
+      const wrapper = document.createElement("div")
+      wrapper.className = "align-items-center row"
+      const value = document.createElement("p");
+      value.className = "form-control-sm py-0 mb-0 col-6";
+      const img = document.createElement("img")
+      img.className = "col-6"
+
+      syncFunction = () => {
+        value.innerText = target[property];
+        img.src = target[property];
+      };
+
+      wrapper.appendChild(value);
+      wrapper.appendChild(img);
+      control.append(wrapper)
+
     } else if (type === TYPE_3TUPLE_SELECTOR) {
       const group = document.createElement("div");
       group.className = "d-flex gap-1";

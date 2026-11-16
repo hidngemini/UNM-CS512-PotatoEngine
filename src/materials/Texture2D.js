@@ -1,6 +1,6 @@
 /** @module materials/Texture2D */
 
-import { TYPE_READ_ONLY } from "../controls/sceneEditor";
+import { TYPE_IMAGE_URL, TYPE_READ_ONLY } from "../controls/sceneEditor";
 
 /**
  * Convenience representation of a 2D texture
@@ -26,7 +26,7 @@ export default class Texture2D {
 
 
   static EDITOR_PROPERTIES = [
-    { name: "url", type: TYPE_READ_ONLY },
+    { name: "url", type: TYPE_IMAGE_URL },
     { name: "animated", type: TYPE_READ_ONLY },
   ];
 
