@@ -27,37 +27,37 @@ export default class TexturedMaterial extends Material {
   /**
    * Default texture type name for normal texture maps
    */
-  static TEXTURE_TYPE_NORMAL = "TEXTURE_TYPE_NORMAL";
+  static TEXTURE_TYPE_NORMAL = "normal";
   /**
    * Default texture type name for bump texture maps
    */
-  static TEXTURE_TYPE_BUMP = "TEXTURE_TYPE_BUMP";
+  static TEXTURE_TYPE_BUMP = "bump";
   /**
    * Default texture type name for albedo (regular base color) texture maps
    */
-  static TEXTURE_TYPE_ALBEDO = "TEXTURE_TYPE_ALBEDO";
+  static TEXTURE_TYPE_ALBEDO = "albedo";
   /**
    * Default texture type name for secondary albedo map ( to blend with TEXTURE_TYPE_ALBEDO) texture maps
    */
-  static TEXTURE_TYPE_ALBEDO2 = "TEXTURE_TYPE_ALBEDO2";
+  static TEXTURE_TYPE_ALBEDO2 = "albedo2";
   /**
    * Default texture type name for displacement texture maps (shifts all other maps in the texture)
    */
-  static TEXTURE_TYPE_DISPLACEMENT = "TEXTURE_TYPE_DISPLACEMENT";
+  static TEXTURE_TYPE_DISPLACEMENT = "displacement";
 
   /**
    * Default texture type name for color ramp texture (TextureColorRamp)
    *
    * Applies to TEXTURE_TYPE_ALBEDO
    */
-  static TEXTURE_TYPE_COLOR_RAMP = "TEXTURE_TYPE_COLOR_RAMP";
+  static TEXTURE_TYPE_COLOR_RAMP = "colorRamp";
 
   /**
    * Default texture type name for color ramp texture (TextureColorRamp)
    *
    * Applies to TEXTURE_TYPE_ALBEDO2
    */
-  static TEXTURE_TYPE_COLOR_RAMP2 = "TEXTURE_TYPE_COLOR_RAMP2";
+  static TEXTURE_TYPE_COLOR_RAMP2 = "colorRampSecondary";
 
   /**
    * Applies to TEXTURE_TYPE_BUMP
