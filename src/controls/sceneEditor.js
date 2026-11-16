@@ -1,7 +1,6 @@
 // Generalized interface to allow editing properties
 // of stuff in the scene on the fly.
 
-import Scene from "../Scene";
 import { hex, rgbToHex } from "../util/color";
 
 // TODO: objects of interest:
@@ -20,6 +19,7 @@ export const TYPE_COLOR_SELECTOR = "color_selector";
 export const TYPE_READ_ONLY = "readonly";
 export const TYPE_IMAGE_URL = "image_url";
 export const TYPE_TEXTURED_MATERIAL_TEXTURES = "textured_mat_texture_map";
+export const TYPE_COLOR_RAMP_PREVIEW = "color_ramp_preview";
 
 // set of property types that cannot be inferred from
 // the type of the value in the object (or that im too lazy to check for)
@@ -255,12 +255,18 @@ export function createPanel(
       wrapper.appendChild(value);
       wrapper.appendChild(img);
       control.append(wrapper);
+    } else if (type == TYPE_COLOR_RAMP_PREVIEW) {
+      control.append(previewColorRamp(target));
+      syncFunction = () => {
+        control.innerHTML = "";
+        control.append(previewColorRamp(target));
+      };
     } else if (type == TYPE_TEXTURED_MATERIAL_TEXTURES) {
       let textureSet = createTextureSet(target[property], scene);
       syncFunction = () => {
-        // control.innerHTML = "";
-        // textureSet = createTextureSet(target[property]);
-        // control.append(textureSet);
+        control.innerHTML = "";
+        textureSet = createTextureSet(target[property], scene);
+        control.append(textureSet);
       };
       control.append(textureSet);
     } else if (type === TYPE_3TUPLE_SELECTOR) {
@@ -568,10 +574,27 @@ function createTextureSet(textures, scene) {
     const row = document.createElement("tr");
     const tex = scene.getTexture(texture.textureLabel);
 
-    row.innerHTML = `<td>${label}</td><td>${texture.textureLabel}</td><td><img style="width:100%" src="${tex.url}"></td>`;
+    let rowText = `<td>${label}</td><td>${texture.textureLabel}</td>`;
+    if (tex.constructor.name == "TextureColorRamp") {
+      row.innerHTML = rowText + `<td>${previewColorRamp(tex).outerHTML}</td>`;
+    } else {
+      row.innerHTML =
+        rowText + `<td><img style="width:100%" src="${tex.url}"></td>`;
+    }
 
     tbody.appendChild(row);
   }
   table.appendChild(tbody);
   return table;
+}
+
+/**
+ * Generate a div with gradient for a preview of a color ramp
+ * @param {} texture
+ * @returns
+ */
+function previewColorRamp(texture) {
+  const prev = document.createElement("div");
+  prev.style = `height:2rem; width:100%; background:linear-gradient(to right, ${rgbToHex(texture.colorStart)}, ${rgbToHex(texture.colorEnd)})`;
+  return prev;
 }

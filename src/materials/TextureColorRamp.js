@@ -1,5 +1,5 @@
 /** @module materials/TextureColorRamp */
-import { TYPE_COLOR_SELECTOR, TYPE_READ_ONLY } from "../controls/sceneEditor";
+import { TYPE_COLOR_RAMP_PREVIEW, TYPE_COLOR_SELECTOR, TYPE_READ_ONLY } from "../controls/sceneEditor";
 import Texture2D from "./Texture2D";
 
 /**
@@ -12,8 +12,10 @@ import Texture2D from "./Texture2D";
 export default class TextureColorRamp extends Texture2D {
   static EDITOR_PROPERTIES = [
     { name: "animated", type: TYPE_READ_ONLY },
+    { name: "width", type: TYPE_READ_ONLY },
     { name: "colorStart", type: TYPE_COLOR_SELECTOR },
-    { name: "colorEnd", type: TYPE_COLOR_SELECTOR }
+    { name: "colorEnd", type: TYPE_COLOR_SELECTOR },
+    { name: "preview", type: TYPE_COLOR_RAMP_PREVIEW }
   ];
 
   /**
