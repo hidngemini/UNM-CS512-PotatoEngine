@@ -1,6 +1,7 @@
 // Generalized interface to allow editing properties
 // of stuff in the scene on the fly.
 
+import Scene from "../Scene";
 import { hex, rgbToHex } from "../util/color";
 
 // TODO: objects of interest:
@@ -239,12 +240,12 @@ export function createPanel(
 
       control.appendChild(value);
     } else if (type == TYPE_IMAGE_URL) {
-      const wrapper = document.createElement("div")
-      wrapper.className = "align-items-center row"
+      const wrapper = document.createElement("div");
+      wrapper.className = "align-items-center row";
       const value = document.createElement("p");
       value.className = "form-control-sm py-0 mb-0 col-6";
-      const img = document.createElement("img")
-      img.className = "col-6"
+      const img = document.createElement("img");
+      img.className = "col-6";
 
       syncFunction = () => {
         value.innerText = target[property];
@@ -253,8 +254,15 @@ export function createPanel(
 
       wrapper.appendChild(value);
       wrapper.appendChild(img);
-      control.append(wrapper)
-
+      control.append(wrapper);
+    } else if (type == TYPE_TEXTURED_MATERIAL_TEXTURES) {
+      let textureSet = createTextureSet(target[property], scene);
+      syncFunction = () => {
+        // control.innerHTML = "";
+        // textureSet = createTextureSet(target[property]);
+        // control.append(textureSet);
+      };
+      control.append(textureSet);
     } else if (type === TYPE_3TUPLE_SELECTOR) {
       const group = document.createElement("div");
       group.className = "d-flex gap-1";
@@ -541,4 +549,29 @@ export function makeEditorTabs(
   };
 
   activateTab("default-controls");
+}
+
+/**
+ * Create a representation of the texture set in textured materials
+ * TODO: remove the unsafe innerHTML stuff lol im tired rn tho
+ * @param {Map} textures
+ * @param {Scene} scene
+ * @returns {HTMLElement}
+ */
+function createTextureSet(textures, scene) {
+  const table = document.createElement("table");
+  table.innerHTML =
+    "<thead><tr><th>Layer Type</th><th>Texture</th><th>Preview</th></tr></thead>";
+  const tbody = document.createElement("tbody");
+
+  for (const [label, texture] of textures.entries()) {
+    const row = document.createElement("tr");
+    const tex = scene.getTexture(texture.textureLabel);
+
+    row.innerHTML = `<td>${label}</td><td>${texture.textureLabel}</td><td><img style="width:100%" src="${tex.url}"></td>`;
+
+    tbody.appendChild(row);
+  }
+  table.appendChild(tbody);
+  return table;
 }

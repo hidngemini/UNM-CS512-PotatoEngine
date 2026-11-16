@@ -3,6 +3,10 @@
  */
 
 import { Scene } from "..";
+import {
+  TYPE_READ_ONLY,
+  TYPE_TEXTURED_MATERIAL_TEXTURES,
+} from "../controls/sceneEditor";
 import { ShaderProgram } from "../shaders";
 import Material from "./Material";
 
@@ -15,40 +19,45 @@ import Material from "./Material";
  * @alias module:materials/TexturedMaterial
  */
 export default class TexturedMaterial extends Material {
+  static EDITOR_PROPERTIES = [
+    { name: "programLabel", type: TYPE_READ_ONLY },
+    { name: "_textures", type: TYPE_TEXTURED_MATERIAL_TEXTURES },
+  ];
+
   /**
    * Default texture type name for normal texture maps
    */
-  static TEXTURE_TYPE_NORMAL = "normal";
+  static TEXTURE_TYPE_NORMAL = "TEXTURE_TYPE_NORMAL";
   /**
    * Default texture type name for bump texture maps
    */
-  static TEXTURE_TYPE_BUMP = "bump";
+  static TEXTURE_TYPE_BUMP = "TEXTURE_TYPE_BUMP";
   /**
    * Default texture type name for albedo (regular base color) texture maps
    */
-  static TEXTURE_TYPE_ALBEDO = "albedo";
+  static TEXTURE_TYPE_ALBEDO = "TEXTURE_TYPE_ALBEDO";
   /**
    * Default texture type name for secondary albedo map ( to blend with TEXTURE_TYPE_ALBEDO) texture maps
    */
-  static TEXTURE_TYPE_ALBEDO2 = "albedo2";
+  static TEXTURE_TYPE_ALBEDO2 = "TEXTURE_TYPE_ALBEDO2";
   /**
    * Default texture type name for displacement texture maps (shifts all other maps in the texture)
    */
-  static TEXTURE_TYPE_DISPLACEMENT = "displacement";
+  static TEXTURE_TYPE_DISPLACEMENT = "TEXTURE_TYPE_DISPLACEMENT";
 
   /**
    * Default texture type name for color ramp texture (TextureColorRamp)
    *
    * Applies to TEXTURE_TYPE_ALBEDO
    */
-  static TEXTURE_TYPE_COLOR_RAMP = "colorRamp";
+  static TEXTURE_TYPE_COLOR_RAMP = "TEXTURE_TYPE_COLOR_RAMP";
 
   /**
    * Default texture type name for color ramp texture (TextureColorRamp)
    *
    * Applies to TEXTURE_TYPE_ALBEDO2
    */
-  static TEXTURE_TYPE_COLOR_RAMP2 = "colorRampSecondary";
+  static TEXTURE_TYPE_COLOR_RAMP2 = "TEXTURE_TYPE_COLOR_RAMP2";
 
   /**
    * Applies to TEXTURE_TYPE_BUMP
