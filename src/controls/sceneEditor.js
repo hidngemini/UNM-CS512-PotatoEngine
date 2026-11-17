@@ -199,7 +199,7 @@ export function createPanel(
 
   const small = document.createElement("small");
   const syncLabel = document.createElement("label");
-  syncLabel.innerText = "Sync Contents";
+  syncLabel.innerText = "Sync Contents Live";
   const syncCheck = document.createElement("input");
   syncCheck.type = "checkbox";
   syncCheck.checked = doSync;
@@ -340,7 +340,7 @@ function appendInputControlRow(target, property, config, scene, panel) {
       input.className = "form-control form-control-sm";
       input.type = "text";
       input.pattern = "(?:\\+|-)?[0-9]*[.]?[0-9]+";
-      input.inputmode="numeric"
+      input.inputmode = "numeric";
       input.step = "any";
       input.setAttribute("aria-label", `${property} ${i + 1}`);
       input.addEventListener(
@@ -371,7 +371,7 @@ function appendInputControlRow(target, property, config, scene, panel) {
     } else if (type === "number") {
       input.type = "text";
       input.pattern = "(?:\\+|-)?[0-9]*[.]?[0-9]+";
-      input.inputmode="numeric"
+      input.inputmode = "numeric";
       input.step = "any";
       input.addEventListener(
         "input",
@@ -543,25 +543,36 @@ export function makeEditorTabs(
 
     const entries = collection ? [...collection.entries()] : [];
 
-    if (entries.length === 0) {
-      const option = document.createElement("option");
-      option.value = "";
-      option.textContent = `No ${label.toLowerCase()} available`;
-      select.appendChild(option);
-      select.disabled = true;
-      return;
-    }
+    /**
+     * (re)Populate the item selector
+     */
+    function populateSelect(val = undefined) {
+      let entries = collection.entries();
+      select.innerHTML = "";
+      if (entries.length === 0) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = `No ${label.toLowerCase()} available`;
+        select.appendChild(option);
+        select.disabled = true;
+        return;
+      }
 
-    // will have to update this for entries that get added on the fly
-    // like new objects in the scene, but this should do for now
-    entries.forEach(([, item], index) => {
-      const option = document.createElement("option");
-      option.value = String(index);
-      // in case there isnt a label on a collection type we throw in
-      option.textContent =
-        item.label ?? `Unlabeled ${label.toLowerCase()} ${index} `;
-      select.appendChild(option);
-    });
+      // will have to update this for entries that get added on the fly
+      // like new objects in the scene, but this should do for now
+      entries.forEach(([, item], index) => {
+        const option = document.createElement("option");
+        option.value = String(index);
+        // in case there isnt a label on a collection type we throw in
+        option.textContent =
+          item.label ?? `Unlabeled ${label.toLowerCase()} ${index} `;
+        select.appendChild(option);
+      });
+
+      if (val) {
+        select.value = val;
+      }
+    }
 
     /**
      * Render the selected entry into the editor pabel
@@ -576,6 +587,8 @@ export function makeEditorTabs(
 
       const [, item] = entry;
       createPanel(item, undefined, scene, propertyPanel);
+
+      populateSelect(select.value);
     }
 
     select.addEventListener("change", () => {
