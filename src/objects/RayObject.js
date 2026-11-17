@@ -3,7 +3,11 @@
  */
 
 import { Scene } from "..";
-import { TYPE_3TUPLE_SELECTOR, TYPE_MATERIAL_SELECTOR, TYPE_PROGRAM_SELECTOR } from "../controls/sceneEditor";
+import {
+  TYPE_3TUPLE_SELECTOR,
+  TYPE_MATERIAL_SELECTOR,
+  TYPE_PROGRAM_SELECTOR,
+} from "../controls/sceneEditor";
 import { mat4Identity } from "../util/transformations";
 import { vec4distance, scaleVec4, sumVec4 } from "../util/vec4";
 import SceneObject from "./SceneObject";
@@ -28,6 +32,7 @@ export default class RayObject extends SceneObject {
     { name: "position", type: TYPE_3TUPLE_SELECTOR },
     { name: "rotation", type: TYPE_3TUPLE_SELECTOR },
     { name: "scale", type: TYPE_3TUPLE_SELECTOR },
+    { name: "center", type: TYPE_3TUPLE_SELECTOR },
     { name: "shouldDraw" },
     { name: "programLabel", type: TYPE_PROGRAM_SELECTOR },
     { name: "materialLabel", type: TYPE_MATERIAL_SELECTOR },
@@ -75,6 +80,7 @@ export default class RayObject extends SceneObject {
    * @param {number[]} options.position             initial three tuple [x,y,z] position of the object
    * @param {number[]} options.rotation             initial three tuple [x,y,z] rotation of the object
    * @param {number[]} options.scale                initial three tuple [x,y,z] scale of the object
+   * @param {number[]} options.center               three tuple [x,y,z] the center of the object (rotates around this)
    * @param {boolean} options.shouldDraw            if this object should be drawn
    * @param {string} options.programLabel           the program to draw this object with
    * @param {string} options.materialLabel          the material to use with this object
@@ -104,6 +110,7 @@ export default class RayObject extends SceneObject {
       position = [0, 0, 0],
       rotation = [0, 0, 0],
       scale = [1, 1, 1],
+      center = [0, 0, 0],
       shouldDraw = true,
       programLabel = undefined,
       materialLabel = undefined,
@@ -143,6 +150,8 @@ export default class RayObject extends SceneObject {
       passes,
     });
 
+    this.center = center
+
     // TODO update this based on the label if it exists
     this.materialIndex = materialIndex;
     this.light = light;
@@ -181,7 +190,6 @@ export default class RayObject extends SceneObject {
    * @param {int} offset offset bytes this object starts at
    */
   packData(view, offset) {
-    const center = this.position;
     let mat = this.M;
 
     if (!this.M || mat.length != 16) {
@@ -219,9 +227,9 @@ export default class RayObject extends SceneObject {
     // NOTE: this.M should already contain the position transform
     //       but we ignore it for now since its not parsed in
     //       the fragment shader
-    view.setFloat32(16 + offset, center[0], true);
-    view.setFloat32(20 + offset, center[1], true);
-    view.setFloat32(24 + offset, center[2], true);
+    view.setFloat32(16 + offset, this.center[0], true);
+    view.setFloat32(20 + offset, this.center[1], true);
+    view.setFloat32(24 + offset, this.center[2], true);
     view.setFloat32(28 + offset, size, true);
 
     // vec4 options (offset 32)

@@ -535,7 +535,13 @@ bool intersectPlane(Plane p, Ray ray, out float t, out vec3 n) {
 
 // TODO
 Ray toObjectSpace(Ray r, mat4 transform) {
-  return r;
+  mat4 worldToObject = inverse(transform);
+
+  Ray localRay;
+  localRay.origin = (worldToObject * vec4(r.origin, 1.0f)).xyz;
+  localRay.direction = (worldToObject * vec4(r.direction, 0.0f)).xyz;
+
+  return localRay;
 }
 
 // switch on the object type and select the correct one from above
@@ -593,7 +599,7 @@ bool intersectObject(
     return false;
 
   t = localT;
-  worldNormal = localNormal;
+  worldNormal = normalize(transpose(inverse(mat3(obj.transform))) * localNormal);
 
   return true;
 }
