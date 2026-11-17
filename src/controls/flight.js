@@ -122,7 +122,9 @@ export function setupKeyboardControls(
     }
 
     if (!handledKeys.has(key)) return;
-    event.preventDefault();
+    if(key !== "0"){
+      event.preventDefault();
+    }
     pressed.add(key);
   }
 

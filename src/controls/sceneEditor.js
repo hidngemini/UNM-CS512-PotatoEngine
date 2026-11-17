@@ -3,18 +3,16 @@
 
 import { hex, rgbToHex } from "../util/color";
 
-// TODO: objects of interest:
-//       - sceneobject
-//       - materials
-//       - light
-//       - shaderprograms?
-//       - textures?
-//       - camera
+// tuple selectors, could make these smart but explicit is working better in my brain rn
+export const TYPE_TUPLE_SELECTOR = "TYPE_TUPLE_SELECTOR_";
+export const TYPE_XTUPLE_SELECTOR = "TYPE_TUPLE_SELECTOR_X";
+export const TYPE_4TUPLE_SELECTOR = "TYPE_TUPLE_SELECTOR_4";
+export const TYPE_3TUPLE_SELECTOR = "TYPE_TUPLE_SELECTOR_3";
+export const TYPE_2TUPLE_SELECTOR = "TYPE_TUPLE_SELECTOR_2";
 
 export const TYPE_MATERIAL_SELECTOR = "TYPE_MATERIAL_SELECTOR";
 export const TYPE_PROGRAM_SELECTOR = "TYPE_PROGRAM_SELECTOR";
 export const TYPE_OBJECT_SELECTOR = "TYPE_OBJECT_SELECTOR";
-export const TYPE_3TUPLE_SELECTOR = "TYPE_3TUPLE_SELECTOR";
 export const TYPE_COLOR_SELECTOR = "TYPE_COLOR_SELECTOR";
 export const TYPE_READ_ONLY = "TYPE_READ_ONLY";
 export const TYPE_IMAGE_URL = "TYPE_IMAGE_URL";
@@ -38,6 +36,7 @@ const PROPERTY_TYPES = {
 let activeTarget;
 // sync functions to call to update the panel readouts
 let activeSync;
+let doSync = false;
 
 /**
  * Generate a function to update the property noted in the target
@@ -111,13 +110,21 @@ function parsePropertyType(target, property, forceType = undefined) {
   }
 
   const val = target[property];
+
   switch (typeof val) {
     case "boolean":
       return "boolean";
     case "number":
       return "number";
-    case Array.isArray(val) && val.length == 3:
-      return TYPE_3TUPLE_SELECTOR;
+  }
+
+  // putting this long of a expression in a switch would be evil
+  if (
+    (Array.isArray(val) || val instanceof Float32Array) &&
+    val.length <= 4 &&
+    val.length > 1
+  ) {
+    return TYPE_XTUPLE_SELECTOR.replace("X", val.length);
   }
 
   return "string";
@@ -186,8 +193,24 @@ export function createPanel(
   activeSync = new Map();
 
   const header = document.createElement("h3");
-  header.className = "h6 mb-3 pb-2 border-bottom";
+  header.className =
+    "h6 mb-3 pb-2 border-bottom d-flex justify-content-between align-items-end";
   header.innerText = `${target.constructor.name}: "${target.label}"`;
+
+  const small = document.createElement("small");
+  const syncLabel = document.createElement("label");
+  syncLabel.innerText = "Sync Contents";
+  const syncCheck = document.createElement("input");
+  syncCheck.type = "checkbox";
+  syncCheck.checked = doSync;
+  syncCheck.classList.add("form-check-input", "mt-0");
+  syncCheck.addEventListener("input", (event) => {
+    doSync = event.target.checked;
+  });
+
+  syncLabel.appendChild(syncCheck);
+  small.appendChild(syncLabel);
+  header.appendChild(small);
   panel.appendChild(header);
 
   for (const config of parseProperties(properties)) {
@@ -196,7 +219,19 @@ export function createPanel(
 
     const type = parsePropertyType(target, property, config.type);
 
-    appendInputControlRow(target, property, config, scene, panel);
+    if (type == TYPE_SHADER_PROGRAM_UNIFORMS) {
+      for (const uniform of Object.keys(target[property])) {
+        appendInputControlRow(
+          target[property],
+          uniform,
+          { label: `${property}.${uniform}` },
+          scene,
+          panel,
+        );
+      }
+    } else {
+      appendInputControlRow(target, property, config, scene, panel);
+    }
   }
 
   return panel;
@@ -216,7 +251,7 @@ function appendInputControlRow(target, property, config, scene, panel) {
 
   const label = document.createElement("label");
   label.className = "col-4 form-label small text-secondary mb-0";
-  label.innerText = property;
+  label.innerText = config.label ?? property;
   row.appendChild(label);
 
   const control = document.createElement("div");
@@ -296,14 +331,16 @@ function appendInputControlRow(target, property, config, scene, panel) {
       control.append(preview2DTextureArraySources(target[property]));
     };
     control.append(sources);
-  } else if (type === TYPE_3TUPLE_SELECTOR) {
+  } else if (type.startsWith(TYPE_TUPLE_SELECTOR)) {
     const group = document.createElement("div");
     group.className = "d-flex gap-1";
 
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < target[property].length; i++) {
       const input = document.createElement("input");
       input.className = "form-control form-control-sm";
-      input.type = "number";
+      input.type = "text";
+      input.pattern = "(?:\\+|-)?[0-9]*[.]?[0-9]+";
+      input.inputmode="numeric"
       input.step = "any";
       input.setAttribute("aria-label", `${property} ${i + 1}`);
       input.addEventListener(
@@ -332,7 +369,9 @@ function appendInputControlRow(target, property, config, scene, panel) {
         input.checked = Boolean(target[property]);
       };
     } else if (type === "number") {
-      input.type = "number";
+      input.type = "text";
+      input.pattern = "(?:\\+|-)?[0-9]*[.]?[0-9]+";
+      input.inputmode="numeric"
       input.step = "any";
       input.addEventListener(
         "input",
@@ -375,8 +414,10 @@ function appendInputControlRow(target, property, config, scene, panel) {
  * Sync the currenty properties in the target
  */
 export function syncProperties() {
-  for (const sync of activeSync.values()) {
-    sync();
+  if (doSync) {
+    for (const sync of activeSync.values()) {
+      sync();
+    }
   }
 }
 

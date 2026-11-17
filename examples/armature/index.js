@@ -159,7 +159,6 @@ async function main() {
 
   setInterval(() => {
     syncProperties();
-    // console.log(armatureObject.children[0].children[1])
     scene.render();
   }, 30);
 }

@@ -2,7 +2,7 @@
  * @module shaders/PhongShaderProgram
  */
 
-import { TYPE_READ_ONLY } from "../controls/sceneEditor";
+import { TYPE_READ_ONLY, TYPE_SHADER_PROGRAM_UNIFORMS } from "../controls/sceneEditor";
 import Light, { LIGHT_DIRECTIONAL, LIGHT_SPOT } from "../lights/Light";
 import { RayMaterial } from "../materials";
 import { RayObject, SceneObject } from "../objects";
@@ -24,19 +24,7 @@ export default class RayShaderProgram extends ShaderProgram {
     { name: "maxLights", type: TYPE_READ_ONLY },
     { name: "maxObjects", type: TYPE_READ_ONLY },
     { name: "maxMaterials", type: TYPE_READ_ONLY },
-    "u_time",
-    "u_resolution",
-    "u_maxBounces",
-    "u_ambientStrength",
-    "u_cameraOrbit",
-    "u_target",
-    "u_objectCount",
-    "u_lightCount",
-    "u_materialCount",
-    "u_raySamples",
-    "u_glassMode",
-    "u_maxShadowLayers",
-    "u_shadowMode",
+    { name: "uniforms", type: TYPE_SHADER_PROGRAM_UNIFORMS },
   ];
   /**
    * Create a new shader program
@@ -108,8 +96,8 @@ export default class RayShaderProgram extends ShaderProgram {
       "u_materialCount",
       "u_raySamples",
       "u_glassMode",
-      "u_maxShadowLayers",
       "u_shadowMode",
+      "u_maxShadowLayers",
     ];
 
     for (const loc of defaultLocs) {
@@ -128,7 +116,7 @@ export default class RayShaderProgram extends ShaderProgram {
     this.uniforms.u_ambientStrength = 0.2;
     this.uniforms.u_raySamples = 1;
     this.uniforms.u_glassMode = 2;
-    // this.uniforms.u_shadowMode = 0;
+    this.uniforms.u_shadowMode = 1;
     this.uniforms.u_maxShadowLayers = 8;
 
     const maxBlockBytes = gl.getParameter(gl.MAX_UNIFORM_BLOCK_SIZE);
