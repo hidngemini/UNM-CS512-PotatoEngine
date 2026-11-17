@@ -1,6 +1,6 @@
 /** @module materials/RayMaterial */
 
-import { TYPE_COLOR_SELECTOR, TYPE_READ_ONLY } from "../controls/sceneEditor";
+import { TYPE_COLOR_SELECTOR, TYPE_READ_ONLY, TYPE_READ_ONLY_HTML } from "../controls/sceneEditor";
 import ShaderProgram from "../shaders/ShaderProgram";
 import Material from "./Material";
 import RayTextureDescriptor from "./RayTextureDescriptor";
@@ -22,6 +22,7 @@ export default class RayMaterial extends Material {
     "refractiveIndex",
     "reflectivity",
     { name: "materialIndex", type: TYPE_READ_ONLY },
+    { name: "textureInformation", type: TYPE_READ_ONLY_HTML },
   ];
 
   /**
@@ -63,6 +64,13 @@ export default class RayMaterial extends Material {
     this.materialIndex = materialIndex;
     this.textureInformation = textureInformation;
     this._textures = textureInformation.map((desc) => desc.pack());
+
+    this.textureInformation.toString = () => {
+      if(textureInformation.length == 0){
+        return "No textures described"
+      }
+      return this.textureInformation.map((e) => e.toString()).join("<br>");
+    };
   }
 
   /**

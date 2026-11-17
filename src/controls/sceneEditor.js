@@ -15,6 +15,7 @@ export const TYPE_PROGRAM_SELECTOR = "TYPE_PROGRAM_SELECTOR";
 export const TYPE_OBJECT_SELECTOR = "TYPE_OBJECT_SELECTOR";
 export const TYPE_COLOR_SELECTOR = "TYPE_COLOR_SELECTOR";
 export const TYPE_READ_ONLY = "TYPE_READ_ONLY";
+export const TYPE_READ_ONLY_HTML = "TYPE_READ_ONLY_HTML";
 export const TYPE_IMAGE_URL = "TYPE_IMAGE_URL";
 export const TYPE_TEXTURED_MATERIAL_TEXTURES =
   "TYPE_TEXTURED_MATERIAL_TEXTURES";
@@ -291,6 +292,15 @@ function appendInputControlRow(target, property, config, scene, panel) {
 
     syncFunction = () => {
       value.innerText = target[property];
+    };
+
+    control.appendChild(value);
+  } else if (type === TYPE_READ_ONLY_HTML) {
+    const value = document.createElement("p");
+    value.className = "form-control-plaintext form-control-sm py-0 mb-0";
+
+    syncFunction = () => {
+      value.innerHTML = target[property];
     };
 
     control.appendChild(value);

@@ -1,5 +1,9 @@
 export const SOURCE_TEXTURE = 0;
 export const SOURCE_FUNCTION = 1;
+const SOURCE_TYPES = {
+  0: "TEXTURE",
+  1: "FUNCTION",
+};
 
 export const BLEND_IGNORE = 0;
 export const BLEND_NORMAL = 1;
@@ -8,10 +12,24 @@ export const BLEND_ADD = 3;
 export const BLEND_MAX = 4;
 export const BLEND_LIGHTEN = 5;
 export const BLEND_DARKEN = 6;
+const BLEND_MODES = {
+  0: "BLEND_IGNORE",
+  1: "BLEND_NORMAL",
+  2: "BLEND_MULTIPLY",
+  3: "BLEND_ADD",
+  4: "BLEND_MAX",
+  5: "BLEND_LIGHTEN",
+  6: "BLEND_DARKEN",
+};
 
 export const TEXTURE_ALBEDO = 0;
 export const TEXTURE_NORMAL = 1;
 export const TEXTURE_BUMP = 2;
+const TEXTURE_TYPES = {
+  0: "ALBEDO",
+  1: "NORMAL",
+  2: "BUMP",
+};
 
 /**
  * just an abstraction to make packing texture ints easier
@@ -29,6 +47,14 @@ export default class RayTextureDescriptor {
     this.blendMode = blendMode;
     this.textureType = textureType;
     this.textureIndex = textureIndex;
+  }
+
+  /**
+   * define to string so its easy to print & debug
+   * @returns {string}
+   */
+  toString() {
+    return `RayTextureDescriptor: <code>${SOURCE_TYPES[this.sourceType]}[${this.textureIndex}] ${BLEND_MODES[this.blendMode]} ${TEXTURE_TYPES[this.textureType]}</code>`;
   }
 
   /**
