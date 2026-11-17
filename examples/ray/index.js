@@ -57,7 +57,7 @@ let lightSphere2;
 function initSceneObjects() {
   sphere = new RayObject("testSphere", RayObject.OBJECT_TYPE_SPHERE, {
     radius: 2,
-    materialIndex: -2,
+    materialIndex: -3,
   });
   let sphere2 = new RayObject("testSphere2", RayObject.OBJECT_TYPE_SPHERE, {
     radius: 2,
@@ -72,23 +72,25 @@ function initSceneObjects() {
   let cube3 = new RayObject("testCube3", RayObject.OBJECT_TYPE_CUBE, {
     halfSize: 2,
     position: [4, -1, -10],
-    materialIndex:-3
+    materialIndex: -4,
   });
   let cube2 = new RayObject("testCube2", RayObject.OBJECT_TYPE_CUBE, {
     halfSize: 1,
     position: [10, 0, -5],
-    materialIndex: -2,
+    materialIndex: -3,
   });
   let plane = new RayObject("testPlane", RayObject.OBJECT_TYPE_PLANE, {
     position: [0, -10, 0],
     width: -1,
     depth: -1,
+    materialIndex: -6,
   });
 
   lightSphere = new RayObject("testLightSphere", RayObject.OBJECT_TYPE_SPHERE, {
     radius: 0.5,
     light: true,
     lightPower: 3,
+    materialIndex: -2,
   });
 
   // lightSphere2 = new RayObject(
@@ -198,7 +200,7 @@ async function main() {
   makeEditorTabs(scene);
 
   setInterval(() => {
-    syncProperties()
+    syncProperties();
     scene.render();
   }, 30);
 }

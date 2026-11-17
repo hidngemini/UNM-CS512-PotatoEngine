@@ -1,7 +1,6 @@
 #version 300 es
 precision highp float;
 precision highp sampler2DArray;
-
 // calculated from the max possible with the object struct in a block
 // ie  
 //   - min guaranteed buffer block = 16384 bytes
@@ -22,7 +21,7 @@ precision highp sampler2DArray;
 #define MAX_MATERIALS 204
 // materials not provided by js, but rather defined in this shader
 // see materials section below
-#define INTERNAL_MATERIALS 4
+#define INTERNAL_MATERIALS 6
 
 uniform float u_time;
 uniform vec2 u_resolution;
@@ -69,9 +68,100 @@ const int SHADOW_MODE_FAST_GLASS = 1;
 const int SHADOW_MODE_SIMPLE_GLASS = 2;
 const int SHADOW_MODE_TIR_GLASS = 3;
 
+/////////////////////////
+// MATERIAL SETUP PT 1 //
+/////////////////////////
+
+// struct to pack material data into so objects
+// dont have to store all of this
+struct Material {
+  vec4 ka; // w unused (xyz => ambient color of normal mat, light color, glass color, reflective color)
+  vec4 kd; // w unused
+  vec4 ks; // w unused 
+  vec4 optics; // specular, refractiveIndex, reflectivity
+  uvec4 textures; // see below section (why this struct is defined early)
+};
+
 ///////////////////
 // TEXTURE SETUP //
 ///////////////////
+
+// texture descriptor layout
+// maybe a: 1 bit, b: 3: bits, c: 4 bits, d: 8 bits 
+//  a: is 1 bit => function / texture
+//  b: blend mode (3 bit => 8 options)  additive, max, multiply etc
+//  c: texture / function type (4 bit => 16 options)  albedo, normal, bump, displacement, specular, optical maps...
+//  d: texture / function num (8 bit => 256 options)
+// it would be a little annoying to unpack these but with some proper bitshifts can probaly work out fine
+// bitshifting is very fast but wonder if there is a way to keep these shited values cached so it doesnt
+// have to be redone every time....
+
+const uint SOURCE_TEXTURE = 0u;
+const uint SOURCE_FUNCTION = 1u;
+
+const uint BLEND_IGNORE = 0u;
+const uint BLEND_NORMAL = 1u; // replace
+const uint BLEND_MULTIPLY = 2u;
+const uint BLEND_ADD = 3u;
+const uint BLEND_MAX = 4u;
+const uint BLEND_LIGHTEN = 5u;
+const uint BLEND_DARKEN = 6u;
+
+const uint TEXTURE_ALBEDO = 0u;
+const uint TEXTURE_NORMAL = 1u;
+const uint TEXTURE_BUMP = 2u;
+
+// 0000000000000001 1u target first bit
+uint texDescriptorSourceType(uint descriptor) {
+  return descriptor & 1u;
+}
+
+// single bit shift >> 1
+// 0000000000000111 7u target 3 bits
+uint texDescriptorBlendMode(uint descriptor) {
+  return (descriptor >> 1u) & 7u;
+}
+
+// bit shift >> 4
+// 0000000000001111 15u target 4 bits
+uint texDescriptorTextureType(uint descriptor) {
+  return (descriptor >> 4u) & 15u;
+}
+
+// bit shift >> 8
+// 0000000011111111 255u target 8 bits
+uint texDescriptorTextureIndex(uint descriptor) {
+  return (descriptor >> 8u) & 255u;
+}
+
+// pack texture descriptor info for internal materials
+// same thing as above in reverse 
+// will have to duplicate this packing method in the js
+// parallel
+// turns out you cant call a function like this globally which is stupid
+// so use the below format (least sig bit first)
+// iiii iiii xxxx bbb f
+// 1111 1111 1000 100 1
+// const uint missingTextureDescriptor = 0b1111111110001001;
+uint packTexDescriptor(
+  uint sourceType,
+  uint blendMode,
+  uint textureType,
+  uint textureIndex
+) {
+  return (sourceType & 1u) |
+    ((blendMode & 7u) << 1u) |
+    ((textureType & 15u) << 4u) |
+    ((textureIndex & 255u) << 8u);
+}
+
+// get the descriptor out of a material
+// slot ranges from 0 to 7
+uint getTextureDescriptor(Material mat, int slot) {
+  uint packed = mat.textures[slot / 2];
+  uint shift = uint((slot % 2) * 16);
+  return (packed >> shift) & 0xFFFFu;
+}
 
 // checkerboard texture pattern based on the provided plane pattern
 vec4 checkerTexture(vec2 uv, vec4 colorA, vec4 colorB, float scale) {
@@ -80,8 +170,29 @@ vec4 checkerTexture(vec2 uv, vec4 colorA, vec4 colorB, float scale) {
   return checker ? colorA : colorB;
 }
 
+// the classic missing texture lol
+// iiii iiii xxxx bbb f
+// 1111 1111 1000 100 1
+const uint missingTextureDescriptor = 65417u;
 vec4 missingTexture(vec2 uv) {
   return checkerTexture(uv, vec4(1.0f, 0.0f, 1.0f, 1.0f), vec4(0.05f, 0.05f, 0.05f, 1.0f), 8.f);
+}
+
+// iiii iiii xxxx bbb f
+// 0000 0000 1000 100 1
+const uint blackWhiteTilesDescriptor = 137u;
+vec4 blackWhiteTiles(vec2 uv) {
+  return checkerTexture(uv, vec4(0.f, 0.f, 0.f, 1.0f), vec4(1.0f), 2.f);
+}
+
+// big switch statement to choose procedural texture. would be nice if we could have 
+// an array of functions but no this has to be an optimized language or smth
+vec4 proceduralTexture(uint index, vec2 uv) {
+  if(index == 0u) {
+    return blackWhiteTiles(uv);
+  }
+
+  return missingTexture(uv);
 }
 
 // sampler helper for when we start using the texture2d array
@@ -98,40 +209,6 @@ vec4 sampleTexture(int layer, vec2 uv) {
 // MATERIAL CONFIG //
 /////////////////////
 
-// struct to pack material data into so objects
-// dont have to store all of this
-struct Material {
-  vec4 ka; // w unused (xyz => ambient color of normal mat, light color, glass color, reflective color)
-  vec4 kd; // w unused
-  vec4 ks; // w unused 
-  vec4 optics; // specular, refractiveIndex, reflectivity
-  uvec4 textures; // be smart using bytes here...
-  // can probably shove texture type, texture number into a small region of unsigned int
-  // probably use it byte by byte, allows 256 textures + 256 types per 16 bits.
-  // this adds up to 8 textures + types per mat. should be sufficient for normal usage
-  // tbh dont need to use a uvec4 here, I just want to keep it standard with the 
-  // other layouts
-  // perhaps 2 4 bit types of textures and then 4 bit types of functions ie function that
-  // highly reduces the space available though
-
-  // maybe a: 1 bit, b: 3: bits, c: 4 bits, d: 8 bits 
-  //  a: is function / texture
-  //  b: blend mode (3 bit => 8 options)  additive, max, multiply etc
-  //  c: texture / function type (4 bit => 16 options)  albedo, normal, bump, displacement, specular, optical maps...
-  //  d: texture / function num (8 bit => 256 options)
-  // it would be a little annoying to unpack these but with some proper bitshifts can probaly work out fine
-  // bitshifting is very fast but wonder if there is a way to keep these shited values cached so it doesnt
-  // have to be redone every time....
-  // all this is fun to think abt but i can probably just double the size of the struct tbh lol.
-  // 128 materials is still a lot and thats only the external ones...
-
-  // tbh also could combine ka / kd by transforming them using the same packing technique.
-  // ie 2 16 bit floats in one 32 bit float. would still be a good range (espically for colors)
-  // not particularly worth it but still a notable optimization option here.
-  // same could be done for objects to shove a bunch of objects into a block, but its 
-  // probably besy to use 
-};
-
 // should allow materials calculated in the shader as well
 // perhaps use negative value in obj.meta.y to signal to the shader? 
 layout(std140) uniform materialBlock {
@@ -142,11 +219,14 @@ layout(std140) uniform materialBlock {
 // should allow me some flexibility, can probably do something similar with the objects
 // although objects that are very advanced might make more sense in a second renderpass?
 // internal default mat, just a solid grey (id = -1)
-const Material _01_default = Material(vec4(0.6f), vec4(0.8f), vec4(0.2f), vec4(0.f), uvec4(0));
-const Material _02_reflect = Material(vec4(1.f), vec4(0.8f), vec4(0.2f), vec4(0.f, 0.f, .8f, 0.f), uvec4(0));
-const Material _03_diamond_green = Material(vec4(0.f, 0.8f, 0.f, 0.f), vec4(0.f, 0.8f, 0, 0), vec4(0.2f), vec4(0.f, 2.42f, 0.f, 0.f), uvec4(0));
-const Material _04_blue = Material(vec4(0.f, 0.f, 1.f, 0.f), vec4(0.f, 0.f, 1.f, 0), vec4(0.f, 0.f, 1.f, 0.f), vec4(0.f, 1.f, 0.f, 0.f), uvec4(0));
-const Material shaderMaterials[INTERNAL_MATERIALS] = Material[INTERNAL_MATERIALS](_01_default, _02_reflect, _03_diamond_green, _04_blue);
+const Material _01_missing = Material(vec4(0), vec4(0), vec4(0), vec4(0), uvec4(missingTextureDescriptor, 0, 0, 0));
+const Material _02_default = Material(vec4(0.6f), vec4(0.8f), vec4(0.2f), vec4(0.f), uvec4(0));
+const Material _03_reflect = Material(vec4(1.f), vec4(0.8f), vec4(0.2f), vec4(0.f, 0.f, .8f, 0.f), uvec4(0));
+const Material _04_diamond_green = Material(vec4(0.f, 0.8f, 0.f, 0.f), vec4(0.f, 0.8f, 0, 0), vec4(0.2f), vec4(0.f, 2.42f, 0.f, 0.f), uvec4(0));
+const Material _05_blue = Material(vec4(0.f, 0.f, 1.f, 0.f), vec4(0.f, 0.f, 1.f, 0), vec4(0.f, 0.f, 1.f, 0.f), vec4(0.f, 1.f, 0.f, 0.f), uvec4(0));
+const Material _06_tiles = Material(vec4(0), vec4(0), vec4(0), vec4(0), uvec4(blackWhiteTilesDescriptor, 0, 0, 0));
+const Material shaderMaterials[INTERNAL_MATERIALS] = Material[INTERNAL_MATERIALS](_01_missing, _02_default, _03_reflect, _04_diamond_green, _05_blue, _06_tiles);
+
 const Material NOTHING_MATERIAL = Material(vec4(0), vec4(0), vec4(0), vec4(0), uvec4(0));
 
 // get a material by its id
@@ -175,15 +255,35 @@ Material calculateMaterial(int matId, vec2 uv) {
     selected = getMaterial(matId);
   }
 
-  // forcefully try out the missing texture 
-  vec4 color = missingTexture(uv);
-  selected.ka = color;
-  selected.kd = color;
+  // just check the first texture slot for now cause im tired
+  uint desc = getTextureDescriptor(selected, 0);
+  uint source = texDescriptorSourceType(desc);
+  uint blend = texDescriptorBlendMode(desc);
+  uint type = texDescriptorTextureType(desc);
+  uint index = texDescriptorTextureIndex(desc);
 
-  // TODO apply texture information or function based on the type indicated...
-  //      hmm probably make this return the start of a hitdata or take in a hitdata
-  //      rather than returning a mat....
+  // ignore the layer, the val should default to 0
+  // so mats without textures will get labeled with 0...
+  // probably a better way to signal no texture tho...
+  if(blend == BLEND_IGNORE) {
+    return selected;
+  }
 
+  vec4 textureColor;
+
+  if(source == SOURCE_TEXTURE) {
+    textureColor = sampleTexture(int(index), uv);
+  } else {
+    textureColor = proceduralTexture(index, uv);
+  }
+
+  // hm probably need a flag for what the texture applies to, 
+  // could use the floats in the .w position of the material as a weight ig
+  selected.ka = textureColor;
+  selected.kd = textureColor;
+  selected.ks = textureColor;
+
+  // will also need to make a different wrapper struct to support normals and stuff
   return selected;
 }
 
@@ -336,7 +436,7 @@ vec2 calculatePlaneUV(vec3 localPoint, Plane plane) {
 
   // infinite plane working with the point coords should 
   // work ok? unsure until i get textures working
-  return p / 20.;
+  return p / 20.f;
 }
 
 // uv calculation for a cube
@@ -668,7 +768,7 @@ vec3 traceShadow(HitData hit, Object light, int sampleNum, int lightNum) {
       // color transmission
       if(!exit) {
         transmittance *= mix(transmittance, mat.ka.xyz, 0.5f);
-        transmittance = normalize(transmittance);
+        // transmittance = normalize(transmittance);
       }
     } else {
 
