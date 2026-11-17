@@ -2,7 +2,10 @@
  * @module shaders/PhongShaderProgram
  */
 
-import { TYPE_READ_ONLY } from "../controls/sceneEditor";
+import {
+  TYPE_READ_ONLY,
+  TYPE_SHADER_PROGRAM_UNIFORMS,
+} from "../controls/sceneEditor";
 import Light, { LIGHT_DIRECTIONAL, LIGHT_SPOT } from "../lights/Light";
 import { SceneObject } from "../objects";
 import { transformPoint } from "../util/transformations";
@@ -12,17 +15,18 @@ import ShaderProgram from "./ShaderProgram";
  * Phong shader program class, I'm just using it to tack on another uniform for free
  * while still remaining readable if i have to deal with it later rather
  * than using the extras thing even though that would work
- * 
+ *
  * @class
  * @alias module:shaders/PhongShaderProgram
  */
 export default class PhongShaderProgram extends ShaderProgram {
-    static EDITOR_PROPERTIES = [
-      "hasMaterial",
-      "hasLight",
-      { name: "maxLights", type: TYPE_READ_ONLY },
-      { name: "lightCount", type: TYPE_READ_ONLY }
-    ];
+  static EDITOR_PROPERTIES = [
+    "hasMaterial",
+    "hasLight",
+    { name: "maxLights", type: TYPE_READ_ONLY },
+    { name: "lightCount", type: TYPE_READ_ONLY },
+    { name: "uniforms", type: TYPE_SHADER_PROGRAM_UNIFORMS },
+  ];
   /**
    * Create a new shader program
    * @param {*} label
@@ -74,7 +78,7 @@ export default class PhongShaderProgram extends ShaderProgram {
   }
 
   /**
-   * Reserve a buffer for lighting information. this is slightly faster 
+   * Reserve a buffer for lighting information. this is slightly faster
    * than updating a bunch of uniform locations but a little more annoying
    * @param {WebGL2RenderingContext} gl the webgl2 context from the scene canvas
    * @param {number} maxLights the maximum amount of lights
