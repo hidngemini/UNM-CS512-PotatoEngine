@@ -45,6 +45,7 @@ function addTextures() {
 const MAT_BLUE_GLASS = "blueGlass";
 const MAT_GREEN_DIFFUSE = "greenDiffuse";
 const MAT_GLASS_TILE = "glassTile";
+const MAT_IMAGE = "imagemat";
 let glass;
 /**
  * Add materials to the scene
@@ -80,9 +81,25 @@ function addMaterials() {
     ],
   });
 
+  let imageMaterial = new RayMaterial(MAT_IMAGE, {
+    ka: [0.5, 0.5, 0.5],
+    kd: [0.5, 0.5, 0.5],
+    ks: [0.5, 0.5, 0.5],
+    textureMapLabel: "textureSet",
+    textureInformation: [
+      new RayTextureDescriptor(
+        TD.SOURCE_TEXTURE,
+        TD.BLEND_NORMAL,
+        TD.TEXTURE_ALBEDO,
+        1,
+      ),
+    ],
+  });
+
   scene.addMaterial(glass, SHADER_PROGRAM_RAY);
   scene.addMaterial(diffuse, SHADER_PROGRAM_RAY);
   scene.addMaterial(glassTile, SHADER_PROGRAM_RAY);
+  scene.addMaterial(imageMaterial, SHADER_PROGRAM_RAY);
 }
 
 let sphere;

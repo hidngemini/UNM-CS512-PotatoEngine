@@ -43,7 +43,7 @@ uniform int u_materialCount;
 
 // texture uniforms
 uniform sampler2DArray u_textures;
-uniform int u_textureLayerCount; // count of how mant textures
+uniform int u_textureLayerCount; // count of how many textures
 
 // 2D sampler usage once I implement it in here
 // uniform sampler2DArray u_textures;

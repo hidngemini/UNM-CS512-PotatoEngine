@@ -73,6 +73,20 @@ function updateUniforms(gl, shaderProgram, scene) {
   packLights(gl, [...this.lights], shaderProgram);
   packMaterials(gl, [...this.materials], shaderProgram);
 
+  // NOTE: only one texture map supported in ray tracing for now
+  const seenTextures = new Set();
+  for (const mat of this.materials) {
+    const tl = mat.textureMapLabel;
+    if (tl && !seenTextures.has(tl)) {
+      seenTextures.add(tl);
+      const tex = scene.getTexture(tl);
+      tex.bind(0, scene.gl);
+      shaderProgram.uniforms.u_textureLayerCount = tex.layerCount;
+
+      break;
+    }
+  }
+
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
 

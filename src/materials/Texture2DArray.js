@@ -1,6 +1,9 @@
 /** @module materials/Texture2DArray */
 
-import { TYPE_2D_TEXTURE_SOURCES, TYPE_READ_ONLY } from "../controls/sceneEditor";
+import {
+  TYPE_2D_TEXTURE_SOURCES,
+  TYPE_READ_ONLY,
+} from "../controls/sceneEditor";
 
 /**
  * Convenience representation of a 2D texture array
@@ -13,6 +16,7 @@ export default class Texture2DArray {
     { name: "width", type: TYPE_READ_ONLY },
     { name: "height", type: TYPE_READ_ONLY },
     { name: "layers", type: TYPE_READ_ONLY },
+    { name: "layerCount", type: TYPE_READ_ONLY },
     { name: "_sources", type: TYPE_2D_TEXTURE_SOURCES },
   ];
 
@@ -44,7 +48,7 @@ export default class Texture2DArray {
       wrapS = gl.REPEAT,
       wrapT = gl.REPEAT,
       animated = false,
-      label = undefined
+      label = undefined,
     } = {},
   ) {
     if (
@@ -70,8 +74,9 @@ export default class Texture2DArray {
     this.wrapT = wrapT;
     this.animated = animated;
     this._sources = new Map();
-    this._loading = []
-    this.label = label
+    this._loading = [];
+    this.label = label;
+    this.layerCount = 0;
 
     this.texture = gl.createTexture();
     if (!this.texture) {
@@ -115,10 +120,12 @@ export default class Texture2DArray {
    * @param {string} url
    * @param {number} layer
    */
-  load(url, layer) {
+  load(url, layer = ++this.layerCount) {
+    this.layerCount = Math.max(layer, this.layerCount);
+
     this._checkLayer(layer);
 
-    const p =  new Promise((resolve, reject) => {
+    const p = new Promise((resolve, reject) => {
       const image = new Image();
 
       image.onload = () => {
@@ -135,7 +142,7 @@ export default class Texture2DArray {
       image.src = url;
     });
 
-    this._loading.push(p)
+    this._loading.push(p);
   }
 
   /**

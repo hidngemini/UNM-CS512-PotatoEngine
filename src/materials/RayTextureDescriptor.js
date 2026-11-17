@@ -54,7 +54,7 @@ export default class RayTextureDescriptor {
    * @returns {string}
    */
   toString() {
-    return `RayTextureDescriptor: <code>${SOURCE_TYPES[this.sourceType]}[${this.textureIndex}] ${BLEND_MODES[this.blendMode]} ${TEXTURE_TYPES[this.textureType]}</code>`;
+    return `<code>${SOURCE_TYPES[this.sourceType]}[${this.textureIndex}] ${BLEND_MODES[this.blendMode]} ${TEXTURE_TYPES[this.textureType]}</code>`;
   }
 
   /**

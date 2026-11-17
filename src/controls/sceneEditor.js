@@ -348,7 +348,7 @@ function appendInputControlRow(target, property, config, scene, panel) {
     for (let i = 0; i < target[property].length; i++) {
       const input = document.createElement("input");
       input.className = "form-control form-control-sm";
-      input.type = "text";
+      input.type = "number";
       input.pattern = "(?:\\+|-)?[0-9]*[.]?[0-9]+";
       input.inputmode = "numeric";
       input.step = "any";
@@ -379,7 +379,7 @@ function appendInputControlRow(target, property, config, scene, panel) {
         input.checked = Boolean(target[property]);
       };
     } else if (type === "number") {
-      input.type = "text";
+      input.type = "number";
       input.pattern = "(?:\\+|-)?[0-9]*[.]?[0-9]+";
       input.inputmode = "numeric";
       input.step = "any";

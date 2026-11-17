@@ -1,6 +1,10 @@
 /** @module materials/RayMaterial */
 
-import { TYPE_COLOR_SELECTOR, TYPE_READ_ONLY, TYPE_READ_ONLY_HTML } from "../controls/sceneEditor";
+import {
+  TYPE_COLOR_SELECTOR,
+  TYPE_READ_ONLY,
+  TYPE_READ_ONLY_HTML,
+} from "../controls/sceneEditor";
 import ShaderProgram from "../shaders/ShaderProgram";
 import Material from "./Material";
 import RayTextureDescriptor from "./RayTextureDescriptor";
@@ -23,6 +27,7 @@ export default class RayMaterial extends Material {
     "reflectivity",
     { name: "materialIndex", type: TYPE_READ_ONLY },
     { name: "textureInformation", type: TYPE_READ_ONLY_HTML },
+    { name: "textureMapLabel", type: TYPE_READ_ONLY },
   ];
 
   /**
@@ -38,6 +43,7 @@ export default class RayMaterial extends Material {
    * @param {number} [object.reflectivity=0]
    * @param {number} [object.materialIndex=-1]
    * @param {RayTextureDescriptor[]} [object.textureInformation=[]]
+   * @param {string} [object.textureMapLabel=undefined] the label of the texture map this material uses
    */
   constructor(
     label,
@@ -51,6 +57,7 @@ export default class RayMaterial extends Material {
       reflectivity = 0,
       materialIndex = -1,
       textureInformation = [],
+      textureMapLabel = undefined,
     } = {},
   ) {
     super(label);
@@ -63,13 +70,17 @@ export default class RayMaterial extends Material {
     this.reflectivity = reflectivity;
     this.materialIndex = materialIndex;
     this.textureInformation = textureInformation;
+    this.textureMapLabel = textureMapLabel;
+
     this._textures = textureInformation.map((desc) => desc.pack());
 
     this.textureInformation.toString = () => {
-      if(textureInformation.length == 0){
-        return "No textures described"
+      if (textureInformation.length == 0) {
+        return "No textures described";
       }
-      return this.textureInformation.map((e) => e.toString()).join("<br>");
+      return this.textureInformation
+        .map((e, i) => `RayTextureDescriptor(${this._textures[i]}): ` + e.toString())
+        .join("<br>");
     };
   }
 
