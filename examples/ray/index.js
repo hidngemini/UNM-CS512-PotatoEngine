@@ -7,7 +7,12 @@ import {
 } from "../../src/renderers/raytracing";
 import flight from "../../src/controls/flight";
 import { RayObject } from "../../src/objects";
-import { RayMaterial, RayTextureDescriptor, TD } from "../../src/materials";
+import {
+  RayMaterial,
+  RayTextureDescriptor,
+  TD,
+  Texture2DArray,
+} from "../../src/materials";
 import { makeEditorTabs, syncProperties } from "../../src/controls/sceneEditor";
 
 const SHADER_PROGRAM_RAY = "ray";
@@ -22,6 +27,20 @@ const rayProgram = scene.createProgram(
   "../../src/shaders/fragment/ray.frag",
   RayShaderProgram,
 );
+
+/**
+ * Add textures to the scene
+ */
+function addTextures() {
+  let textureSet = new Texture2DArray(scene.gl, 512, 512, 10, {
+    label: "textureSet",
+  });
+  textureSet.load("./brick.png", 0);
+  textureSet.load("./brick.png", 1);
+  textureSet.load("./brick.png", 2);
+  textureSet.load("./brick.png", 3);
+  scene.addTexture("textureSet", textureSet, { load: false });
+}
 
 const MAT_BLUE_GLASS = "blueGlass";
 const MAT_GREEN_DIFFUSE = "greenDiffuse";
@@ -45,7 +64,7 @@ function addMaterials() {
   });
 
   // test see if we can call a texture function
-  // defined in the shader 
+  // defined in the shader
   let glassTile = new RayMaterial(MAT_GLASS_TILE, {
     ka: [1, 0, 1],
     kd: [1, 0, 1],
@@ -211,6 +230,7 @@ scene.setUpdateCB(updateScene);
 async function main() {
   addRayTracingRenderPass(scene, SHADER_PROGRAM_RAY);
   addMaterials();
+  addTextures();
   await scene.load();
 
   initSceneObjects();

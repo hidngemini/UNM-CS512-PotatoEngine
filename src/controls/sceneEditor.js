@@ -20,6 +20,7 @@ export const TYPE_READ_ONLY = "readonly";
 export const TYPE_IMAGE_URL = "image_url";
 export const TYPE_TEXTURED_MATERIAL_TEXTURES = "textured_mat_texture_map";
 export const TYPE_COLOR_RAMP_PREVIEW = "color_ramp_preview";
+export const TYPE_2D_TEXTURE_SOURCES = "texture2d_sources";
 
 // set of property types that cannot be inferred from
 // the type of the value in the object (or that im too lazy to check for)
@@ -269,6 +270,13 @@ export function createPanel(
         control.append(textureSet);
       };
       control.append(textureSet);
+    } else if (type == TYPE_2D_TEXTURE_SOURCES) {
+      let sources = preview2DTextureArraySources(target[property]);
+      syncFunction = () => {
+        control.innerHTML = "";
+        control.append(preview2DTextureArraySources(target[property]));
+      };
+      control.append(sources);
     } else if (type === TYPE_3TUPLE_SELECTOR) {
       const group = document.createElement("div");
       group.className = "d-flex gap-1";
@@ -597,4 +605,33 @@ function previewColorRamp(texture) {
   const prev = document.createElement("div");
   prev.style = `height:2rem; width:100%; background:linear-gradient(to right, ${rgbToHex(texture.colorStart)}, ${rgbToHex(texture.colorEnd)})`;
   return prev;
+}
+
+/**
+ * Preview the set of sources in a 2d texture array
+ * @param {Map} sources
+ */
+function preview2DTextureArraySources(sources) {
+  const table = document.createElement("table");
+  table.innerHTML =
+    "<thead><tr><th>Layer Number</th><th>Texture URL</th><th>Preview</th></tr></thead>";
+  const tbody = document.createElement("tbody");
+
+  for (const [key, entry] of sources.entries()) {
+    const row = document.createElement("tr");
+    const sourceWrap = document.createElement("div")
+    sourceWrap.innerHTML = entry.outerHTML
+    sourceWrap.style="width:100%; height:auto"
+
+    const sourceUrl = entry.src ?? entry.id
+
+    row.innerHTML = `<td>${key}</td><td>${sourceUrl}</td><td>${sourceWrap.outerHTML}</td>`;
+
+    tbody.appendChild(row);
+  }
+
+  table.classList.add("texture-source-table");
+
+  table.appendChild(tbody);
+  return table;
 }

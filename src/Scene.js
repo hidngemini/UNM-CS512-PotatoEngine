@@ -14,7 +14,7 @@ import {
 } from "./util/transformations";
 import RenderPass from "./renderers/RenderPass";
 import { renderers } from ".";
-import { Texture2D, Material } from "./materials";
+import { Texture2D, Material, Texture2DArray } from "./materials";
 import { RENDER_PASS_RAY } from "./renderers";
 import { TYPE_COLOR_SELECTOR, TYPE_READ_ONLY } from "./controls/sceneEditor";
 
@@ -577,11 +577,12 @@ export default class Scene {
   /**
    * Add a new texture to the scene & start loading it
    * @param {string} label
-   * @param {Texture2D} texture
+   * @param {Texture2D | Texture2DArray} texture
    * @param {Object} options
    * @param {boolean} options.upload if we are uploading a TexImageSource instead of image url
    * @param {boolean} options.load if we want to start load function on the texture
    * @param {string | TexImageSource} options.source if you want to use a source
+   * @param {(string | TexImageSource)[]} options.sources if you want to load / upload sources to 2d texture
    */
   addTexture(
     label,
@@ -592,10 +593,12 @@ export default class Scene {
       throw new Error(`Texture "${label}" already exists`);
     }
 
-    if (upload) {
-      texture.ready = texture.upload(source);
-    } else if (load) {
-      texture.ready = texture.load(source);
+    if (!(texture instanceof Texture2DArray)) {
+      if (upload) {
+        texture.ready = texture.upload(source);
+      } else if (load) {
+        texture.ready = texture.load(source);
+      }
     }
 
     this.textures.set(label, texture);
@@ -623,7 +626,13 @@ export default class Scene {
    */
   async loadTextures() {
     await Promise.all(
-      [...this.textures.values()].map((texture) => texture.ready),
+      [...this.textures.values()].map((texture) => {
+        if (texture instanceof Texture2DArray) {
+          return Promise.all(texture._loading);
+        } else {
+          return texture.ready;
+        }
+      }),
     );
   }
 

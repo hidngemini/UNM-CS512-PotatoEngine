@@ -1,12 +1,21 @@
 /** @module materials/Texture2DArray */
 
+import { TYPE_2D_TEXTURE_SOURCES, TYPE_READ_ONLY } from "../controls/sceneEditor";
+
 /**
  * Convenience representation of a 2D texture array
- * 
+ *
  * @class
  * @alias module:materials/Texture2DArray
  */
 export default class Texture2DArray {
+  static EDITOR_PROPERTIES = [
+    { name: "width", type: TYPE_READ_ONLY },
+    { name: "height", type: TYPE_READ_ONLY },
+    { name: "layers", type: TYPE_READ_ONLY },
+    { name: "_sources", type: TYPE_2D_TEXTURE_SOURCES },
+  ];
+
   /**
    * @param {WebGL2RenderingContext} gl
    * @param {number} width
@@ -20,6 +29,7 @@ export default class Texture2DArray {
    * @param {*} [options.wrapS=gl.REPEAT]
    * @param {*} [options.wrapT=gl.REPEAT]
    * @param {boolean} [options.animated=false]
+   * @param {string} [options.label=undefined]
    */
   constructor(
     gl,
@@ -34,6 +44,7 @@ export default class Texture2DArray {
       wrapS = gl.REPEAT,
       wrapT = gl.REPEAT,
       animated = false,
+      label = undefined
     } = {},
   ) {
     if (
@@ -59,6 +70,8 @@ export default class Texture2DArray {
     this.wrapT = wrapT;
     this.animated = animated;
     this._sources = new Map();
+    this._loading = []
+    this.label = label
 
     this.texture = gl.createTexture();
     if (!this.texture) {
@@ -97,16 +110,15 @@ export default class Texture2DArray {
     }
   }
 
-
   /**
    * Load the image at the url into this texture at the specified layer
-   * @param {string} url 
-   * @param {number} layer 
+   * @param {string} url
+   * @param {number} layer
    */
   load(url, layer) {
     this._checkLayer(layer);
 
-    return new Promise((resolve, reject) => {
+    const p =  new Promise((resolve, reject) => {
       const image = new Image();
 
       image.onload = () => {
@@ -122,8 +134,9 @@ export default class Texture2DArray {
       image.onerror = () => reject(new Error(`Failed to load texture: ${url}`));
       image.src = url;
     });
-  }
 
+    this._loading.push(p)
+  }
 
   /**
    * parse some valid source to the texture layer
@@ -133,7 +146,7 @@ export default class Texture2DArray {
    *    size to use overall...
    * @param {TexImageSource} source
    * @param {number} layer
-   * @param {WebGL2RenderingContext} [gl=this._gl] 
+   * @param {WebGL2RenderingContext} [gl=this._gl]
    */
   upload(source, layer, gl = this._gl) {
     this._checkLayer(layer);
@@ -157,6 +170,9 @@ export default class Texture2DArray {
         0,
         0,
         layer,
+        this.width,
+        this.height,
+        1,
         gl.RGBA,
         gl.UNSIGNED_BYTE,
         source,
@@ -177,7 +193,7 @@ export default class Texture2DArray {
   /**
    * Size helper since the attributes vary based on type
    * notably: images, video, html element
-   * @param {TexImageSource} source 
+   * @param {TexImageSource} source
    * @returns {{width:number, height:number}}
    */
   _sourceSize(source) {
@@ -189,7 +205,7 @@ export default class Texture2DArray {
 
   /**
    * Validate that a layer number is in range
-   * @param {number} layer 
+   * @param {number} layer
    */
   _checkLayer(layer) {
     if (!Number.isInteger(layer) || layer < 0 || layer >= this.layers) {
@@ -202,10 +218,9 @@ export default class Texture2DArray {
   /**
    * bind this texture to a texture unit
    * @param {*} unit the unit
-   * @param {WebGL2RenderingContext} [gl=this._gl] 
+   * @param {WebGL2RenderingContext} [gl=this._gl]
    */
   bind(unit = 0, gl = this._gl) {
-
     // TODO: come back here and allow indv layers to be animated
     //       rather than all of them being updated...
     if (this.animated) {
@@ -220,7 +235,7 @@ export default class Texture2DArray {
 
   /**
    * Clean up the allocated things
-   * @param {WebGL2RenderingContext} [gl=this._gl] 
+   * @param {WebGL2RenderingContext} [gl=this._gl]
    */
   dispose(gl = this._gl) {
     if (this.texture) {
