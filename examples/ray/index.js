@@ -7,7 +7,7 @@ import {
 } from "../../src/renderers/raytracing";
 import flight from "../../src/controls/flight";
 import { RayObject } from "../../src/objects";
-import { RayMaterial } from "../../src/materials";
+import { RayMaterial, RayTextureDescriptor, TD } from "../../src/materials";
 import { makeEditorTabs, syncProperties } from "../../src/controls/sceneEditor";
 
 const SHADER_PROGRAM_RAY = "ray";
@@ -25,6 +25,7 @@ const rayProgram = scene.createProgram(
 
 const MAT_BLUE_GLASS = "blueGlass";
 const MAT_GREEN_DIFFUSE = "greenDiffuse";
+const MAT_GLASS_TILE = "glassTile";
 let glass;
 /**
  * Add materials to the scene
@@ -43,8 +44,26 @@ function addMaterials() {
     ks: [0, 1, 0],
   });
 
+  // test see if we can call a texture function
+  // defined in the shader 
+  let glassTile = new RayMaterial(MAT_GLASS_TILE, {
+    ka: [1, 0, 1],
+    kd: [1, 0, 1],
+    ks: [1, 0, 1],
+    refractiveIndex: 2,
+    textureInformation: [
+      new RayTextureDescriptor(
+        TD.SOURCE_FUNCTION,
+        TD.BLEND_NORMAL,
+        TD.TEXTURE_ALBEDO,
+        255,
+      ),
+    ],
+  });
+
   scene.addMaterial(glass, SHADER_PROGRAM_RAY);
   scene.addMaterial(diffuse, SHADER_PROGRAM_RAY);
+  scene.addMaterial(glassTile, SHADER_PROGRAM_RAY);
 }
 
 let sphere;

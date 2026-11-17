@@ -1,8 +1,10 @@
-export {default as PhongMaterial} from "./PhongMaterial"
-export {default as Material} from "./Material"
-export {default as Texture2D} from "./Texture2D"
-export {default as Texture2DArray} from "./Texture2DArray"
-export {default as TextureColorRamp} from "./TextureColorRamp"
-export {default as TexturedMaterial} from "./TexturedMaterial"
-export {default as RayMaterial} from "./RayMaterial"
-export * as common from "./common"
+export { default as PhongMaterial } from "./PhongMaterial";
+export { default as Material } from "./Material";
+export { default as Texture2D } from "./Texture2D";
+export { default as Texture2DArray } from "./Texture2DArray";
+export { default as TextureColorRamp } from "./TextureColorRamp";
+export { default as TexturedMaterial } from "./TexturedMaterial";
+export { default as RayMaterial } from "./RayMaterial";
+export { default as RayTextureDescriptor } from "./RayTextureDescriptor";
+export * as TD from "./RayTextureDescriptor";
+export * as common from "./common";

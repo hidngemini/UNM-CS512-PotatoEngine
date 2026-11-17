@@ -2,9 +2,8 @@
 
 import { TYPE_COLOR_SELECTOR, TYPE_READ_ONLY } from "../controls/sceneEditor";
 import ShaderProgram from "../shaders/ShaderProgram";
-import { rgb } from "../util/color";
-import { vertColor } from "./common";
 import Material from "./Material";
+import RayTextureDescriptor from "./RayTextureDescriptor";
 
 /**
  * Convenience Interface class for ray shader materials
@@ -37,6 +36,7 @@ export default class RayMaterial extends Material {
    * @param {number} [object.refractiveIndex=1]
    * @param {number} [object.reflectivity=0]
    * @param {number} [object.materialIndex=-1]
+   * @param {RayTextureDescriptor[]} [object.textureInformation=[]]
    */
   constructor(
     label,
@@ -49,9 +49,7 @@ export default class RayMaterial extends Material {
       refractiveIndex = 1,
       reflectivity = 0,
       materialIndex = -1,
-      textureInformation = {
-        // TODO
-      },
+      textureInformation = [],
     } = {},
   ) {
     super(label);
@@ -63,6 +61,8 @@ export default class RayMaterial extends Material {
     this.refractiveIndex = refractiveIndex;
     this.reflectivity = reflectivity;
     this.materialIndex = materialIndex;
+    this.textureInformation = textureInformation;
+    this._textures = textureInformation.map((desc) => desc.pack());
   }
 
   /**
@@ -110,10 +110,10 @@ export default class RayMaterial extends Material {
     view.setFloat32(60 + offset, 0, true);
 
     // ivec4 textures (offset 64)
-    view.setInt32(64 + offset, 0, true);
-    view.setInt32(68 + offset, 0, true);
-    view.setInt32(72 + offset, 0, true);
-    view.setInt32(76 + offset, 0, true);
+    for (let i = 0; i < 8; i++) {
+      const desc = this._textures[i] ?? 0;
+      view.setUint16(64 + i * 2 + offset, desc, true);
+    }
   }
 
   /**
