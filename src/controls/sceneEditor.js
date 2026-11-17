@@ -11,16 +11,18 @@ import { hex, rgbToHex } from "../util/color";
 //       - textures?
 //       - camera
 
-export const TYPE_MATERIAL_SELECTOR = "material_selector";
-export const TYPE_PROGRAM_SELECTOR = "program_selector";
-export const TYPE_OBJECT_SELECTOR = "object_selector";
-export const TYPE_3TUPLE_SELECTOR = "3tuple_selector";
-export const TYPE_COLOR_SELECTOR = "color_selector";
-export const TYPE_READ_ONLY = "readonly";
-export const TYPE_IMAGE_URL = "image_url";
-export const TYPE_TEXTURED_MATERIAL_TEXTURES = "textured_mat_texture_map";
-export const TYPE_COLOR_RAMP_PREVIEW = "color_ramp_preview";
-export const TYPE_2D_TEXTURE_SOURCES = "texture2d_sources";
+export const TYPE_MATERIAL_SELECTOR = "TYPE_MATERIAL_SELECTOR";
+export const TYPE_PROGRAM_SELECTOR = "TYPE_PROGRAM_SELECTOR";
+export const TYPE_OBJECT_SELECTOR = "TYPE_OBJECT_SELECTOR";
+export const TYPE_3TUPLE_SELECTOR = "TYPE_3TUPLE_SELECTOR";
+export const TYPE_COLOR_SELECTOR = "TYPE_COLOR_SELECTOR";
+export const TYPE_READ_ONLY = "TYPE_READ_ONLY";
+export const TYPE_IMAGE_URL = "TYPE_IMAGE_URL";
+export const TYPE_TEXTURED_MATERIAL_TEXTURES =
+  "TYPE_TEXTURED_MATERIAL_TEXTURES";
+export const TYPE_COLOR_RAMP_PREVIEW = "TYPE_COLOR_RAMP_PREVIEW";
+export const TYPE_2D_TEXTURE_SOURCES = "TYPE_2D_TEXTURE_SOURCES";
+export const TYPE_SHADER_PROGRAM_UNIFORMS = "TYPE_SHADER_PROGRAM_UNIFORMS";
 
 // set of property types that cannot be inferred from
 // the type of the value in the object (or that im too lazy to check for)
@@ -192,170 +194,181 @@ export function createPanel(
     const property = config.name;
     if (!property) continue;
 
-    const row = document.createElement("div");
-    row.className = "row g-2 align-items-center mb-2";
-
-    const label = document.createElement("label");
-    label.className = "col-4 form-label small text-secondary mb-0";
-    label.innerText = property;
-    row.appendChild(label);
-
-    const control = document.createElement("div");
-    control.className = "col-8";
-
-    let syncFunction;
     const type = parsePropertyType(target, property, config.type);
 
-    if (
-      type === TYPE_MATERIAL_SELECTOR ||
-      type === TYPE_OBJECT_SELECTOR ||
-      type === TYPE_PROGRAM_SELECTOR
-    ) {
-      const select = document.createElement("select");
-      select.className = "form-select form-select-sm";
-
-      const options = getOptionsFromScene(scene, type);
-      options.forEach(([key, item]) => {
-        const option = document.createElement("option");
-        option.value = key;
-        option.innerText = item.label;
-        select.appendChild(option);
-      });
-
-      select.addEventListener("input", (event) => {
-        target[property] = event.target.value;
-      });
-
-      syncFunction = () => {
-        select.value = target[property];
-      };
-
-      control.appendChild(select);
-    } else if (type === TYPE_READ_ONLY) {
-      const value = document.createElement("p");
-      value.className = "form-control-plaintext form-control-sm py-0 mb-0";
-
-      syncFunction = () => {
-        value.innerText = target[property];
-      };
-
-      control.appendChild(value);
-    } else if (type == TYPE_IMAGE_URL) {
-      const wrapper = document.createElement("div");
-      wrapper.className = "align-items-center row";
-      const value = document.createElement("p");
-      value.className = "form-control-sm py-0 mb-0 col-6";
-      const img = document.createElement("img");
-      img.className = "col-6";
-
-      syncFunction = () => {
-        value.innerText = target[property];
-        img.src = target[property];
-      };
-
-      wrapper.appendChild(value);
-      wrapper.appendChild(img);
-      control.append(wrapper);
-    } else if (type == TYPE_COLOR_RAMP_PREVIEW) {
-      control.append(previewColorRamp(target));
-      syncFunction = () => {
-        control.innerHTML = "";
-        control.append(previewColorRamp(target));
-      };
-    } else if (type == TYPE_TEXTURED_MATERIAL_TEXTURES) {
-      let textureSet = previewTextureMaterialLayers(target[property], scene);
-      syncFunction = () => {
-        control.innerHTML = "";
-        textureSet = previewTextureMaterialLayers(target[property], scene);
-        control.append(textureSet);
-      };
-      control.append(textureSet);
-    } else if (type == TYPE_2D_TEXTURE_SOURCES) {
-      let sources = preview2DTextureArraySources(target[property]);
-      syncFunction = () => {
-        control.innerHTML = "";
-        control.append(preview2DTextureArraySources(target[property]));
-      };
-      control.append(sources);
-    } else if (type === TYPE_3TUPLE_SELECTOR) {
-      const group = document.createElement("div");
-      group.className = "d-flex gap-1";
-
-      for (let i = 0; i < 3; i++) {
-        const input = document.createElement("input");
-        input.className = "form-control form-control-sm";
-        input.type = "number";
-        input.step = "any";
-        input.setAttribute("aria-label", `${property} ${i + 1}`);
-        input.addEventListener(
-          "input",
-          updatePropertyHandler(target, property, i, Number),
-        );
-        group.appendChild(input);
-      }
-
-      syncFunction = () => {
-        [...group.children].forEach((input, i) => {
-          input.value = target[property]?.[i] ?? "";
-        });
-      };
-
-      control.appendChild(group);
-    } else {
-      const input = document.createElement("input");
-      input.className = "form-control form-control-sm";
-
-      if (type === "boolean") {
-        input.type = "checkbox";
-        input.classList.add("form-check-input", "mt-0");
-
-        syncFunction = () => {
-          input.checked = Boolean(target[property]);
-        };
-      } else if (type === "number") {
-        input.type = "number";
-        input.step = "any";
-        input.addEventListener(
-          "input",
-          updatePropertyHandler(target, property, undefined, Number),
-        );
-
-        syncFunction = () => {
-          input.value = target[property] ?? "";
-        };
-      } else if (type === "string") {
-        input.type = "text";
-        input.addEventListener(
-          "input",
-          updatePropertyHandler(target, property),
-        );
-
-        syncFunction = () => {
-          input.value = target[property] ?? "";
-        };
-      } else if (type === TYPE_COLOR_SELECTOR) {
-        input.type = "color";
-        input.classList.add("form-control-color", "p-1");
-        input.addEventListener(
-          "input",
-          updatePropertyHandler(target, property, undefined, hex),
-        );
-
-        syncFunction = () => {
-          input.value = rgbToHex(target[property]) ?? "";
-        };
-      }
-
-      control.appendChild(input);
-    }
-
-    row.appendChild(control);
-    panel.appendChild(row);
-    activeSync.set(property, syncFunction);
-    syncFunction();
+    appendInputControlRow(target, property, config, scene, panel);
   }
 
   return panel;
+}
+
+/**
+ * create a single row in the editor, sectioned out to make the uniform set less of a headache
+ * @param {Object} target
+ * @param {string} property
+ * @param {Object} config
+ * @param {Scene} scene
+ * @param {HTMLElement} panel
+ */
+function appendInputControlRow(target, property, config, scene, panel) {
+  const row = document.createElement("div");
+  row.className = "row g-2 align-items-center mb-2";
+
+  const label = document.createElement("label");
+  label.className = "col-4 form-label small text-secondary mb-0";
+  label.innerText = property;
+  row.appendChild(label);
+
+  const control = document.createElement("div");
+  control.className = "col-8";
+
+  let syncFunction;
+  const type = parsePropertyType(target, property, config.type);
+
+  if (
+    type === TYPE_MATERIAL_SELECTOR ||
+    type === TYPE_OBJECT_SELECTOR ||
+    type === TYPE_PROGRAM_SELECTOR
+  ) {
+    const select = document.createElement("select");
+    select.className = "form-select form-select-sm";
+
+    const options = getOptionsFromScene(scene, type);
+    options.forEach(([key, item]) => {
+      const option = document.createElement("option");
+      option.value = key;
+      option.innerText = item.label;
+      select.appendChild(option);
+    });
+
+    select.addEventListener("input", (event) => {
+      target[property] = event.target.value;
+    });
+
+    syncFunction = () => {
+      select.value = target[property];
+    };
+
+    control.appendChild(select);
+  } else if (type === TYPE_READ_ONLY) {
+    const value = document.createElement("p");
+    value.className = "form-control-plaintext form-control-sm py-0 mb-0";
+
+    syncFunction = () => {
+      value.innerText = target[property];
+    };
+
+    control.appendChild(value);
+  } else if (type == TYPE_IMAGE_URL) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "align-items-center row";
+    const value = document.createElement("p");
+    value.className = "form-control-sm py-0 mb-0 col-6";
+    const img = document.createElement("img");
+    img.className = "col-6";
+
+    syncFunction = () => {
+      value.innerText = target[property];
+      img.src = target[property];
+    };
+
+    wrapper.appendChild(value);
+    wrapper.appendChild(img);
+    control.append(wrapper);
+  } else if (type == TYPE_COLOR_RAMP_PREVIEW) {
+    control.append(previewColorRamp(target));
+    syncFunction = () => {
+      control.innerHTML = "";
+      control.append(previewColorRamp(target));
+    };
+  } else if (type == TYPE_TEXTURED_MATERIAL_TEXTURES) {
+    let textureSet = previewTextureMaterialLayers(target[property], scene);
+    syncFunction = () => {
+      control.innerHTML = "";
+      textureSet = previewTextureMaterialLayers(target[property], scene);
+      control.append(textureSet);
+    };
+    control.append(textureSet);
+  } else if (type == TYPE_2D_TEXTURE_SOURCES) {
+    let sources = preview2DTextureArraySources(target[property]);
+    syncFunction = () => {
+      control.innerHTML = "";
+      control.append(preview2DTextureArraySources(target[property]));
+    };
+    control.append(sources);
+  } else if (type === TYPE_3TUPLE_SELECTOR) {
+    const group = document.createElement("div");
+    group.className = "d-flex gap-1";
+
+    for (let i = 0; i < 3; i++) {
+      const input = document.createElement("input");
+      input.className = "form-control form-control-sm";
+      input.type = "number";
+      input.step = "any";
+      input.setAttribute("aria-label", `${property} ${i + 1}`);
+      input.addEventListener(
+        "input",
+        updatePropertyHandler(target, property, i, Number),
+      );
+      group.appendChild(input);
+    }
+
+    syncFunction = () => {
+      [...group.children].forEach((input, i) => {
+        input.value = target[property]?.[i] ?? "";
+      });
+    };
+
+    control.appendChild(group);
+  } else {
+    const input = document.createElement("input");
+    input.className = "form-control form-control-sm";
+
+    if (type === "boolean") {
+      input.type = "checkbox";
+      input.classList.add("form-check-input", "mt-0");
+
+      syncFunction = () => {
+        input.checked = Boolean(target[property]);
+      };
+    } else if (type === "number") {
+      input.type = "number";
+      input.step = "any";
+      input.addEventListener(
+        "input",
+        updatePropertyHandler(target, property, undefined, Number),
+      );
+
+      syncFunction = () => {
+        input.value = target[property] ?? "";
+      };
+    } else if (type === "string") {
+      input.type = "text";
+      input.addEventListener("input", updatePropertyHandler(target, property));
+
+      syncFunction = () => {
+        input.value = target[property] ?? "";
+      };
+    } else if (type === TYPE_COLOR_SELECTOR) {
+      input.type = "color";
+      input.classList.add("form-control-color", "p-1");
+      input.addEventListener(
+        "input",
+        updatePropertyHandler(target, property, undefined, hex),
+      );
+
+      syncFunction = () => {
+        input.value = rgbToHex(target[property]) ?? "";
+      };
+    }
+
+    control.appendChild(input);
+  }
+
+  row.appendChild(control);
+  panel.appendChild(row);
+  activeSync.set(property, syncFunction);
+  syncFunction();
 }
 
 /**

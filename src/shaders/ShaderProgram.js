@@ -2,6 +2,8 @@
  * @module shaders/ShaderProgram
  */
 
+import { TYPE_SHADER_PROGRAM_UNIFORMS } from "../controls/sceneEditor";
+
 /**
  * Simple wrapper class representation of a shader program
  *
@@ -9,7 +11,11 @@
  * @alias module:shaders/ShaderProgram
  */
 export default class ShaderProgram {
-  static EDITOR_PROPERTIES = ["hasMaterial", "hasLight"];
+  static EDITOR_PROPERTIES = [
+    "hasMaterial",
+    "hasLight",
+    { name: "uniforms", type: TYPE_SHADER_PROGRAM_UNIFORMS },
+  ];
   /**
    * Create a new shader program
    * @param {string} label the label to use for this program
