@@ -24,19 +24,27 @@ const rayProgram = scene.createProgram(
 );
 
 const MAT_BLUE_GLASS = "blueGlass";
+const MAT_GREEN_DIFFUSE = "greenDiffuse";
 let glass;
 /**
  * Add materials to the scene
  */
 function addMaterials() {
   glass = new RayMaterial(MAT_BLUE_GLASS, {
-    ka: [0, 0, 0],
+    ka: [0, 0, 1],
     kd: [0, 0, 1],
-    ks: [0, 0, 0],
+    ks: [0, 0, 1],
     refractiveIndex: 2.42,
   });
 
+  let diffuse = new RayMaterial(MAT_GREEN_DIFFUSE, {
+    ka: [0, 1, 0],
+    kd: [0, 1, 0],
+    ks: [0, 1, 0],
+  });
+
   scene.addMaterial(glass, SHADER_PROGRAM_RAY);
+  scene.addMaterial(diffuse, SHADER_PROGRAM_RAY);
 }
 
 let sphere;

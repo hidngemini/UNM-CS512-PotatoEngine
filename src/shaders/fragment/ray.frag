@@ -1,5 +1,6 @@
 #version 300 es
 precision highp float;
+precision highp sampler2DArray;
 
 // calculated from the max possible with the object struct in a block
 // ie  
@@ -21,7 +22,7 @@ precision highp float;
 #define MAX_MATERIALS 204
 // materials not provided by js, but rather defined in this shader
 // see materials section below
-#define INTERNAL_MATERIALS 3
+#define INTERNAL_MATERIALS 4
 
 uniform float u_time;
 uniform vec2 u_resolution;
@@ -40,6 +41,10 @@ uniform int u_shadowMode;
 uniform int u_objectCount;
 uniform int u_lightCount;
 uniform int u_materialCount;
+
+// texture uniforms
+uniform sampler2DArray u_textures;
+uniform int u_textureLayerCount; // count of how mant textures
 
 // 2D sampler usage once I implement it in here
 // uniform sampler2DArray u_textures;
@@ -64,6 +69,31 @@ const int SHADOW_MODE_FAST_GLASS = 1;
 const int SHADOW_MODE_SIMPLE_GLASS = 2;
 const int SHADOW_MODE_TIR_GLASS = 3;
 
+///////////////////
+// TEXTURE SETUP //
+///////////////////
+
+// checkerboard texture pattern based on the provided plane pattern
+vec4 checkerTexture(vec2 uv, vec4 colorA, vec4 colorB, float scale) {
+  ivec2 cell = ivec2(floor(uv * scale));
+  bool checker = ((cell.x + cell.y) % 2) == 0;
+  return checker ? colorA : colorB;
+}
+
+vec4 missingTexture(vec2 uv) {
+  return checkerTexture(uv, vec4(1.0f, 0.0f, 1.0f, 1.0f), vec4(0.05f, 0.05f, 0.05f, 1.0f), 8.f);
+}
+
+// sampler helper for when we start using the texture2d array
+vec4 sampleTexture(int layer, vec2 uv) {
+  // default to the missing texture 
+  if(layer < 0 || layer > u_textureLayerCount) {
+    return missingTexture(uv);
+  }
+
+  return texture(u_textures, vec3(uv, float(layer)));
+}
+
 /////////////////////
 // MATERIAL CONFIG //
 /////////////////////
@@ -71,7 +101,7 @@ const int SHADOW_MODE_TIR_GLASS = 3;
 // struct to pack material data into so objects
 // dont have to store all of this
 struct Material {
-  vec4 ka; // w unused
+  vec4 ka; // w unused (xyz => ambient color of normal mat, light color, glass color, reflective color)
   vec4 kd; // w unused
   vec4 ks; // w unused 
   vec4 optics; // specular, refractiveIndex, reflectivity
@@ -115,8 +145,8 @@ layout(std140) uniform materialBlock {
 const Material _01_default = Material(vec4(0.6f), vec4(0.8f), vec4(0.2f), vec4(0.f), uvec4(0));
 const Material _02_reflect = Material(vec4(1.f), vec4(0.8f), vec4(0.2f), vec4(0.f, 0.f, .8f, 0.f), uvec4(0));
 const Material _03_diamond_green = Material(vec4(0.f, 0.8f, 0.f, 0.f), vec4(0.f, 0.8f, 0, 0), vec4(0.2f), vec4(0.f, 2.42f, 0.f, 0.f), uvec4(0));
-const Material shaderMaterials[INTERNAL_MATERIALS] = Material[INTERNAL_MATERIALS](_01_default, _02_reflect, _03_diamond_green);
-
+const Material _04_blue = Material(vec4(0.f, 0.f, 1.f, 0.f), vec4(0.f, 0.f, 1.f, 0), vec4(0.f, 0.f, 1.f, 0.f), vec4(0.f, 1.f, 0.f, 0.f), uvec4(0));
+const Material shaderMaterials[INTERNAL_MATERIALS] = Material[INTERNAL_MATERIALS](_01_default, _02_reflect, _03_diamond_green, _04_blue);
 const Material NOTHING_MATERIAL = Material(vec4(0), vec4(0), vec4(0), vec4(0), uvec4(0));
 
 // get a material by its id
@@ -135,9 +165,8 @@ bool isValidMatId(int matId) {
 
 // calculate a material function or evaluate a textured material at a given uv
 Material calculateMaterial(int matId, vec2 uv) {
-  // return ;
-
   Material selected;
+
   if(!isValidMatId(matId)) {
     // get default internal material as a fallback
     // TODO: make the default internal material
@@ -145,6 +174,11 @@ Material calculateMaterial(int matId, vec2 uv) {
   } else {
     selected = getMaterial(matId);
   }
+
+  // forcefully try out the missing texture 
+  vec4 color = missingTexture(uv);
+  selected.ka = color;
+  selected.kd = color;
 
   // TODO apply texture information or function based on the type indicated...
   //      hmm probably make this return the start of a hitdata or take in a hitdata
@@ -248,32 +282,6 @@ layout(std140) uniform lightBlock {
   Object lights[MAX_LIGHTS];
 };
 
-// NOTE: i guess lights are objects in this basic representation?
-//       for now use a lightblock of objects, could use the same 
-//       object array but then you lose information space
-//       of either lower cap of objects overall, or using a byte to
-//       signal its a light, although could shove into meta.x with 
-//       a bitshift for free basically
-
-// NOTE: old light block layout from phong shaders
-//       adding this back in some capacity would be nice
-//       since directional & spotlights are cool
-
-// const int LIGHT_POINT = 0;
-// const int LIGHT_SPOT = 1;
-// const int LIGHT_DIRECTIONAL = 2;
-
-// layout(std140) uniform LightBlock {
-//   // x, y, z, type
-//   vec4 positionType[MAX_LIGHTS];
-//   // r, g, b, intensity
-//   vec4 colorIntensity[MAX_LIGHTS];
-//   // attA, attB, attC, cutoff
-//   vec4 attenuationCutoff[MAX_LIGHTS];
-//   // dirX, dirY, dirZ, spotExponent
-//   vec4 directionExponent[MAX_LIGHTS];
-// };
-
 ///////////////////////////
 // RAY TRACING STRUCTURE //
 ///////////////////////////
@@ -285,27 +293,77 @@ struct Ray {
 };
 
 // wrapper around hit information
+// NOTE: these can be calculated directly from the material
+//       so we do not store them in HitData to keep it small
+// color
+// reflectivity 
+// ior
+// isGlass
 struct HitData {
   bool hit;
   float t;
   vec3 point;
   vec3 normal;
-  vec3 color;
-  float reflectivity;
-  float ior;
-  bool isLight;
-  bool isGlass;
-  Material mat;
+  float lightPower;
+  int matId;
+  vec2 uv;
 };
 
-///////////
-// SETUP //
-///////////
+/////////////////////////////
+// TEXTURE UV CALCULATIONS //
+/////////////////////////////
 
-const Sphere lightSphere = Sphere(-1, vec3(0.f), 0.3f, mat4(0));
-Sphere sphere;
-Sphere glassSphere;
-Cube cube;
+// these are all direct parallels to the uv calculations we 
+// did when working with primitives, the only difference is that
+// we are calculating them on the fly like we are with intersections
+
+// uv calculation for a sphere
+vec2 calculateSphereUV(vec3 localPoint, Sphere sphere) {
+  vec3 n = normalize((localPoint - sphere.center) / sphere.radius);
+  float u = atan(n.z, n.x) / (2.0f * 3.14159f) + 0.5f;
+  float v = asin(clamp(n.y, -1.0f, 1.0f)) / 3.14159f + 0.5f;
+  return vec2(u, v);
+}
+
+// uv calculation for a plane 
+vec2 calculatePlaneUV(vec3 localPoint, Plane plane) {
+  vec2 p = localPoint.xz - plane.center.xz;
+
+  // finite plane 
+  if(plane.width > 0.0f && plane.depth > 0.0f) {
+    return vec2(p.x / plane.width + 0.5f, p.y / plane.depth + 0.5f);
+  }
+
+  // infinite plane working with the point coords should 
+  // work ok? unsure until i get textures working
+  return p / 20.;
+}
+
+// uv calculation for a cube
+vec2 calculateCubeUV(
+  vec3 localPoint,
+  vec3 localNormal,
+  Cube cube
+) {
+  vec3 p = (localPoint - cube.center) / (cube.halfSize * 2.0f);
+  vec3 n = abs(localNormal);
+  vec2 uv;
+
+  // x-facing faces
+  if(n.x > n.y && n.x > n.z) {
+    uv = vec2(p.z, p.y);
+  }
+  // y-facing faces
+  else if(n.y > n.z) {
+    uv = vec2(p.x, p.z);
+  }
+  // z-facing faces
+  else {
+    uv = vec2(p.x, p.y);
+  }
+
+  return uv + 0.5f;
+}
 
 ///////////////////////////////
 // INTERSECTION CALCULATIONS //
@@ -352,13 +410,6 @@ bool intersectCube(Cube cube, Ray ray, out float t, out vec3 normal) {
   return true;
 }
 
-// bool intersectPlane(Plane p, Ray ray, out float t) {
-//   if(abs(ray.direction.y) < 0.0001f)
-//     return false;
-//   t = (p.center.y - ray.origin.y) / ray.direction.y;
-//   return t > 0.001f;
-// }
-
 bool intersectPlane(Plane p, Ray ray, out float t, out vec3 n) {
   if(abs(ray.direction.y) < 0.0001f)
     return false;
@@ -389,8 +440,14 @@ Ray toObjectSpace(Ray r, mat4 transform) {
 
 // switch on the object type and select the correct one from above
 // apply the transform before to put the light ray in the correct space
-
-bool intersectObject(Object obj, Ray worldRay, out float t, out vec3 worldNormal) {
+// also calculate the corresponding uvs
+bool intersectObject(
+  Object obj,
+  Ray worldRay,
+  out float t,
+  out vec3 worldNormal,
+  out vec2 uv
+) {
 
   // TODO transform ray to local object space...
   Ray localRay = toObjectSpace(worldRay, obj.transform);
@@ -406,15 +463,24 @@ bool intersectObject(Object obj, Ray worldRay, out float t, out vec3 worldNormal
     if(didHit) {
       vec3 p = localRay.origin + localRay.direction * localT;
       localNormal = normalize((p - s.center) / s.radius);
+      uv = calculateSphereUV(p, s);
     }
   } else if(obj.meta.x == OBJECT_TYPE_CUBE) {
     Cube c = Cube(obj.meta.y, obj.centerRadius.xyz, obj.centerRadius.w, obj.transform);
 
     didHit = intersectCube(c, localRay, localT, localNormal);
+    if(didHit) {
+      vec3 p = localRay.origin + localRay.direction * localT;
+      uv = calculateCubeUV(p, localNormal, c);
+    }
   } else if(obj.meta.x == OBJECT_TYPE_PLANE) {
     Plane p = Plane(obj.meta.y, obj.centerRadius.xyz, obj.centerRadius.w, obj.options.x, obj.transform);
 
     didHit = intersectPlane(p, localRay, localT, localNormal);
+    if(didHit) {
+      vec3 point = localRay.origin + localRay.direction * localT;
+      uv = calculatePlaneUV(point, p);
+    }
   } else if(obj.meta.x == OBJECT_TYPE_CONE) {
     // TODO
   } else if(obj.meta.x == OBJECT_TYPE_TORUS) {
@@ -434,7 +500,7 @@ bool intersectObject(Object obj, Ray worldRay, out float t, out vec3 worldNormal
 
 // calculate hitdata for a hit on a object
 HitData calculateHit(Object obj, Ray ray) {
-  HitData result = HitData(false, 1e10f, vec3(0.0f), vec3(0.0f), vec3(0.f), 0.0f, 0.0f, false, false, NOTHING_MATERIAL);
+  HitData result = HitData(false, 1e10f, vec3(0.0f), vec3(0.0f), 0.0f, -1, vec2(0));
 
   // if the material is out of range then we ignore
   // - if less than 0, ensure it is in range of the internal materials
@@ -445,31 +511,19 @@ HitData calculateHit(Object obj, Ray ray) {
 
   float t;
   vec3 normal;
-  Material mat;
+  vec2 uv;
 
-  if(!intersectObject(obj, ray, t, normal)) {
+  if(!intersectObject(obj, ray, t, normal, uv)) {
     return result;
   }
-
-  if(obj.meta.y < 0) {
-    mat = shaderMaterials[-1 * (obj.meta.y + 1)];
-  } else {
-    mat = materials[obj.meta.y];
-  }
-
-  float ior = mat.optics.y;
-  float reflectivity = mat.optics.z;
 
   result.hit = true;
   result.t = t;
   result.point = ray.origin + ray.direction * t;
   result.normal = normal;
-  result.color = mat.kd.rgb;
-  result.reflectivity = reflectivity;
-  result.ior = mat.optics.y;
-  result.isLight = false;
-  result.isGlass = mat.optics.y > 1.001f;
-  result.mat = mat;
+  result.lightPower = -1.f;
+  result.matId = obj.meta.y;
+  result.uv = uv;
 
   return result;
 }
@@ -527,11 +581,11 @@ HitData traceScene(Ray ray, bool includeLight) {
     for(int i = 0; i < u_lightCount; ++i) {
       HitData candidate = calculateHit(lights[i], ray);
       candidate.normal = vec3(0.0f);
-      candidate.isLight = true;
-      // add power in
-      candidate.color += lights[i].options.w;
-      if(candidate.hit && candidate.t < hit.t)
+      // set power, calculate influence on color later
+      candidate.lightPower = lights[i].options.w;
+      if(candidate.hit && candidate.t < hit.t) {
         hit = candidate;
+      }
     }
   }
 
@@ -539,8 +593,9 @@ HitData traceScene(Ray ray, bool includeLight) {
   // wonder if we can depth sort objects to make faster?
   for(int i = 0; i < u_objectCount; ++i) {
     HitData candidate = calculateHit(objects[i], ray);
-    if(candidate.hit && candidate.t < hit.t)
+    if(candidate.hit && candidate.t < hit.t) {
       hit = candidate;
+    }
   }
 
   return hit;
@@ -576,12 +631,14 @@ vec3 traceShadow(HitData hit, Object light, int sampleNum, int lightNum) {
   for(int layer = 0; layer < u_maxShadowLayers; layer++) {
     Ray shadow = Ray(position, lightDir);
     HitData blocker = traceScene(shadow, false);
+    Material mat = calculateMaterial(blocker.matId, blocker.uv);
 
     if(!blocker.hit || blocker.t > lightDist) {
       break;
     }
 
-    if(u_shadowMode == SHADOW_MODE_FAST || !blocker.isGlass) {
+    // check if glass hit
+    if(u_shadowMode == SHADOW_MODE_FAST || !(mat.optics.y > 1.01f)) {
       return vec3(0.f);
     }
 
@@ -592,13 +649,15 @@ vec3 traceShadow(HitData hit, Object light, int sampleNum, int lightNum) {
     vec3 I = lightDir;
 
     float n1 = 1.0f;
-    float n2 = blocker.ior;
+    // ior mat
+    float ior = mat.optics.y;
+    float n2 = ior;
     float cosThetaI = dot(-I, N);
     bool exit = cosThetaI < 0.0f;
     if(exit) {
       N = -N;
       cosThetaI = dot(-I, N);
-      n1 = blocker.ior;
+      n1 = ior;
       n2 = 1.0f;
     }
     // add shadow mode to select fast, simple, TIR
@@ -608,7 +667,7 @@ vec3 traceShadow(HitData hit, Object light, int sampleNum, int lightNum) {
       // or refraction, this produces reasonable looking, but not correct
       // color transmission
       if(!exit) {
-        transmittance *= mix(transmittance, blocker.color, 0.5f);
+        transmittance *= mix(transmittance, mat.ka.xyz, 0.5f);
         transmittance = normalize(transmittance);
       }
     } else {
@@ -642,7 +701,8 @@ vec3 traceShadow(HitData hit, Object light, int sampleNum, int lightNum) {
       // only on exit doesnt look right, unsure what the difference is
       // will have to look inito later
       if(!exit) {
-        transmittance *= mix(vec3(1.f), blocker.color, 0.5f);
+        transmittance *= mix(vec3(1.f), mat.ka.xyz, 0.5f);
+        // transmittance = normalize(transmittance);
       }
 
       // if getting dim just give up and return the transmittince early
@@ -675,6 +735,7 @@ vec3 trace(Ray ray, int sampleNum) {
   // use loop to simulate the recursive process as GLSL doesn't support recursions
   for(int bounce = 0; bounce < u_maxBounces; bounce++) {
     HitData hit = traceScene(ray, true);
+    Material mat = calculateMaterial(hit.matId, hit.uv);
 
     if(!hit.hit) {
       float t = 0.5f * (ray.direction.y + 1.0f);
@@ -682,28 +743,27 @@ vec3 trace(Ray ray, int sampleNum) {
       break;
     }
 
-    // added this in the light hit section, since we dont know what light we hit, 
-    // except without the attenuation term, maybe hitdata should be able to have a 
-    // light struct in it to look at the info or pass attenuation down to 
-    // if(hit.isLight) {
-    //   color += attenuation * lightSphere.color * LIGHT_POWER;
-    //   break;
-    // }
+    // pulled this out of the light hit section again
+    if(hit.lightPower > 0.f) {
+      color += (attenuation * hit.lightPower) * mat.ka.xyz;
+      break;
+    }
 
     // Monte Carlo Sampling (& multiple rays per pixel), reflect with probability 
     // F (random() < schlick_value), else refract, and average many samples per pixel
-    if(hit.isGlass) {
+    if(mat.optics.y > 1.01f) {
       vec3 I = normalize(ray.direction);
       vec3 N = normalize(hit.normal);
 
       // entering or exiting the glass?
+      float ior = mat.optics.y;
       float n1 = 1.0f;
-      float n2 = hit.ior;
+      float n2 = ior;
       float cosThetaI = dot(-I, N);
       if(cosThetaI < 0.0f) {
         N = -N;
         cosThetaI = dot(-I, N);
-        n1 = hit.ior;
+        n1 = ior;
         n2 = 1.0f;
       }
 
@@ -721,12 +781,12 @@ vec3 trace(Ray ray, int sampleNum) {
           ray = Ray(hit.point + N * 0.001f, reflectGlass(I, N));
         } else {
           ray = Ray(hit.point - N * 0.001f, refractGlass(I, N, eta, cosThetaI, etaSin2I));
-          attenuation *= hit.color;
+          attenuation *= mat.ka.xyz;
         }
 
         continue;
       } else if(u_glassMode == GLASS_MODE_CONTRIBUTION) {
-        // TODO: this one requires recusion emulation
+        // TODO: this one requires recursion emulation
         // probably make a stack of rays to evaluate
 
         // essentially the following:
@@ -762,7 +822,7 @@ vec3 trace(Ray ray, int sampleNum) {
           // NOTE: tint from passing through or reflecting off
           // maybe reflect and refract should have diff color influence?
           // we have mat.kd and mat.ks to work with, reflect could make sense as ks...
-          attenuation *= hit.color;
+          attenuation *= mat.ka.xyz;
         }
         ray = Ray(point, direction);
 
@@ -792,14 +852,14 @@ vec3 trace(Ray ray, int sampleNum) {
     }
 
     //  (optional) Ambient fill light approximates indirect light we don't trace.
-    vec3 shading = hit.color * (directLightColor + u_ambientStrength);
-    color += attenuation * shading * (1.0f - hit.reflectivity);
+    vec3 shading = mat.ka.xyz * u_ambientStrength + mat.kd.xyz * directLightColor;
+    color += attenuation * shading * (1.0f - mat.optics.z);
 
-    if(hit.reflectivity == 0.0f) {
+    if(mat.optics.z == 0.0f) {
       break;
     }
 
-    attenuation *= hit.reflectivity * hit.mat.ka.xyz;
+    attenuation *= mat.optics.z * mat.ka.xyz;
     ray = Ray(hit.point + hit.normal * 0.001f, reflect(ray.direction, hit.normal));
   }
 

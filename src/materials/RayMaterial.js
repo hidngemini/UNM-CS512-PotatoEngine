@@ -1,6 +1,6 @@
 /** @module materials/RayMaterial */
 
-import { TYPE_COLOR_SELECTOR } from "../controls/sceneEditor";
+import { TYPE_COLOR_SELECTOR, TYPE_READ_ONLY } from "../controls/sceneEditor";
 import ShaderProgram from "../shaders/ShaderProgram";
 import { rgb } from "../util/color";
 import { vertColor } from "./common";
@@ -12,7 +12,7 @@ import Material from "./Material";
  * @alias module:materials/RayMaterial
  */
 export default class RayMaterial extends Material {
-  static MATERIAL_BYTE_SIZE = 64;
+  static MATERIAL_BYTE_SIZE = 80;
 
   static EDITOR_PROPERTIES = [
     { name: "ka", type: TYPE_COLOR_SELECTOR },
@@ -22,7 +22,7 @@ export default class RayMaterial extends Material {
     "alpha",
     "refractiveIndex",
     "reflectivity",
-    "materialIndex",
+    { name: "materialIndex", type: TYPE_READ_ONLY },
   ];
 
   /**
@@ -49,6 +49,9 @@ export default class RayMaterial extends Material {
       refractiveIndex = 1,
       reflectivity = 0,
       materialIndex = -1,
+      textureInformation = {
+        // TODO
+      },
     } = {},
   ) {
     super(label);
@@ -83,10 +86,10 @@ export default class RayMaterial extends Material {
    */
   packData(view, offset) {
     // vec4 ka (offset 0)
-    view.setInt32(0 + offset, this.ka[0], true);
-    view.setInt32(4 + offset, this.ka[1], true);
-    view.setInt32(8 + offset, this.ka[2], true);
-    view.setInt32(12 + offset, 0, true);
+    view.setFloat32(0 + offset, this.ka[0], true);
+    view.setFloat32(4 + offset, this.ka[1], true);
+    view.setFloat32(8 + offset, this.ka[2], true);
+    view.setFloat32(12 + offset, 0, true);
 
     // vec4 kd (offset 16)
     view.setFloat32(16 + offset, this.kd[0], true);
@@ -105,6 +108,12 @@ export default class RayMaterial extends Material {
     view.setFloat32(52 + offset, this.refractiveIndex, true);
     view.setFloat32(56 + offset, this.reflectivity, true);
     view.setFloat32(60 + offset, 0, true);
+
+    // ivec4 textures (offset 64)
+    view.setInt32(64 + offset, 0, true);
+    view.setInt32(68 + offset, 0, true);
+    view.setInt32(72 + offset, 0, true);
+    view.setInt32(76 + offset, 0, true);
   }
 
   /**
