@@ -263,10 +263,10 @@ export function createPanel(
         control.append(previewColorRamp(target));
       };
     } else if (type == TYPE_TEXTURED_MATERIAL_TEXTURES) {
-      let textureSet = createTextureSet(target[property], scene);
+      let textureSet = previewTextureMaterialLayers(target[property], scene);
       syncFunction = () => {
         control.innerHTML = "";
-        textureSet = createTextureSet(target[property], scene);
+        textureSet = previewTextureMaterialLayers(target[property], scene);
         control.append(textureSet);
       };
       control.append(textureSet);
@@ -568,11 +568,12 @@ export function makeEditorTabs(
 /**
  * Create a representation of the texture set in textured materials
  * TODO: remove the unsafe innerHTML stuff lol im tired rn tho
+ * TODO: fix the weird jitter that only happens on gh-pages
  * @param {Map} textures
  * @param {Scene} scene
  * @returns {HTMLElement}
  */
-function createTextureSet(textures, scene) {
+function previewTextureMaterialLayers(textures, scene) {
   const table = document.createElement("table");
   table.innerHTML =
     "<thead><tr><th>Layer Type</th><th>Texture</th><th>Preview</th></tr></thead>";
@@ -585,9 +586,12 @@ function createTextureSet(textures, scene) {
     let rowText = `<td>${label}</td><td>${texture.textureLabel}</td>`;
     if (tex.constructor.name == "TextureColorRamp") {
       row.innerHTML = rowText + `<td>${previewColorRamp(tex).outerHTML}</td>`;
-    } else {
+    } else if (tex.url !== undefined) {
       row.innerHTML =
         rowText + `<td><img style="width:100%" src="${tex.url}"></td>`;
+    } else {
+      rowText +
+        `<td>Error loading texture ${tex.label} (${tex.constructor.name}) ${tex.url}</td>`;
     }
 
     tbody.appendChild(row);
@@ -619,11 +623,11 @@ function preview2DTextureArraySources(sources) {
 
   for (const [key, entry] of sources.entries()) {
     const row = document.createElement("tr");
-    const sourceWrap = document.createElement("div")
-    sourceWrap.innerHTML = entry.outerHTML
-    sourceWrap.style="width:100%; height:auto"
+    const sourceWrap = document.createElement("div");
+    sourceWrap.innerHTML = entry.outerHTML;
+    sourceWrap.style = "width:100%; height:auto";
 
-    const sourceUrl = entry.src ?? entry.id
+    const sourceUrl = entry.src ?? entry.id;
 
     row.innerHTML = `<td>${key}</td><td>${sourceUrl}</td><td>${sourceWrap.outerHTML}</td>`;
 
