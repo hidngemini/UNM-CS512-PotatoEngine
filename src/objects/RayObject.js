@@ -8,7 +8,13 @@ import {
   TYPE_MATERIAL_SELECTOR,
   TYPE_PROGRAM_SELECTOR,
 } from "../controls/sceneEditor";
-import { mat3Transpose, mat4Identity, mat4Inverse, mat4ToMat3, mat4Transpose } from "../util/transformations";
+import {
+  mat3Transpose,
+  mat4Identity,
+  mat4Inverse,
+  mat4ToMat3,
+  transformPoint,
+} from "../util/transformations";
 import { vec4distance, scaleVec4, sumVec4 } from "../util/vec4";
 import SceneObject from "./SceneObject";
 
@@ -26,8 +32,11 @@ export default class RayObject extends SceneObject {
   static OBJECT_TYPE_CYLINDER = 4;
   static OBJECT_TYPE_PLANE = 5;
 
-  static OBJECT_BYTE_SIZE = 112; // 16 + 16 + 16 + 64
-  static OBJECT_TRANSFORM_BYTE_SIZE = 100; //  64 + 36
+  static OBJECT_BYTE_SIZE = 64; // 16 + 16 + 16 + 16
+  // 64 + 48 ( mat3 padded to vec4 for some reason...)
+  // can bump max objects a bit if we optimize this.
+  static OBJECT_TRANSFORM_BYTE_SIZE = 112; 
+
 
   static EDITOR_PROPERTIES = [
     { name: "position", type: TYPE_3TUPLE_SELECTOR },
@@ -151,7 +160,7 @@ export default class RayObject extends SceneObject {
       passes,
     });
 
-    this.center = center
+    this.center = center;
 
     // TODO update this based on the label if it exists
     this.materialIndex = materialIndex;
@@ -169,6 +178,32 @@ export default class RayObject extends SceneObject {
     this.faces = faces;
 
     this.type = type;
+  }
+
+  /**
+   * roughly calculate the hit radius of the object
+   * @returns 
+   */
+  getRadius(){
+    switch(this.type){
+      case RayObject.OBJECT_TYPE_SPHERE:
+        return this.radius
+      case RayObject.OBJECT_TYPE_CUBE:
+        // (sqrt 2)
+        return this.halfSize * 1.414213 * 1.5
+      case RayObject.OBJECT_TYPE_CONE:
+        return Math.max(this.radius, this.height)
+      case RayObject.OBJECT_TYPE_TORUS:
+        return this.radius + this.radiusMinor
+      case RayObject.OBJECT_TYPE_CYLINDER:
+        return Math.max(this.radius, this.height)
+      case RayObject.OBJECT_TYPE_PLANE:
+        // (sqrt 2)
+        if(this.width< 0 || this.depth < 0 ){
+          return 100;
+        }
+        return Math.max(this.width, this.depth) * 1.414213 * 1.5
+    }
   }
 
   /**
@@ -258,37 +293,20 @@ export default class RayObject extends SceneObject {
     view.setFloat32(40 + offset, options.z, true);
     view.setFloat32(44 + offset, options.w, true);
 
-    // mat4 transform (offset 48 -> 48 + 64 = 112)
-    for (let i = 0; i < 16; i++) {
-      view.setFloat32(48 + i * 4 + offset, mat[i], true);
-    }
+    const worldCenter = transformPoint(this.center, mat);
+
+    view.setFloat32(48 + offset, worldCenter[0], true)
+    view.setFloat32(52 + offset, worldCenter[1], true)
+    view.setFloat32(56 + offset, worldCenter[2], true)
+    view.setFloat32(60 + offset, this.getRadius(), true)
   }
 
   /**
-   * 
-   * 
-   * 
-// update the object and light inverse transform caches
-// this way we dont need to calculate for every ray for every object lol
-void updateTransformCaches() {
-  // NOTE: I think this :
-  //       mat3 inv3 = mat3(inv);
-  //       is only true for affine transforms
-  //       ie scale, translate, rotate, shear etc
-  //       otherwise we need to calculate inverse(mat3(T));
-  // keep the closest hit in the scene 
-  // wonder if we can depth sort objects to make faster?
-  for(int i = 0; i < u_objectCount; ++i) {
-    mat4 inv = inverse(objects[i].transform);
-    mat3 inv3 = transpose(mat3(inv));
-    objTransformCache[i] = ObjectTransformCache(inv, inv3);
-  }
-}
-
+   *
+   * @param {*} view
+   * @param {*} offset
    */
-  packTransformData(view, offset){
-
-    console.log("sus")
+  packTransformData(view, offset) {
     let mat = this.M;
 
     if (!this.M || mat.length != 16) {
@@ -298,17 +316,23 @@ void updateTransformCaches() {
       mat = mat4Identity();
     }
 
-    inverse = mat4Inverse(mat)
-    inverse3 = mat3Transpose(mat4ToMat3(mat4))
+    const inverse = mat4Inverse(mat);
+    const inverse3 = mat3Transpose(mat4ToMat3(inverse));
 
     // mat4 inverse (offset 0 -> 64)
     for (let i = 0; i < 16; i++) {
       view.setFloat32(i * 4 + offset, inverse[i], true);
     }
 
-    // mat3 inverse3 (offset 68 -> 104)
-    for (let i = 0; i < 9; i++) {
-      view.setFloat32(68 + i * 4 + offset, inverse3[i], true);
+    for (let col = 0; col < 3; col++) {
+      for (let row = 0; row < 3; row++) {
+        view.setFloat32(
+          offset + 64 + col * 16 + row * 4,
+          inverse3[col * 3 + row],
+          true,
+        );
+      }
+      view.setFloat32(offset + 64 + col * 16 + 12, 0, true); // padding
     }
   }
 

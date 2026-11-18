@@ -125,7 +125,7 @@ function packObjects(
   const view = new DataView(bytes);
 
   const bytesT = new ArrayBuffer(transformItemSize * maxItems);
-  const viewT = new DataView(bytes);
+  const viewT = new DataView(bytesT);
 
   for (let i = 0; i < objects.length; i++) {
     objects[i].packData(view, i * itemSize);

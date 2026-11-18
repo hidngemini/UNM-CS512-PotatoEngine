@@ -2,7 +2,10 @@
  * @module shaders/PhongShaderProgram
  */
 
-import { TYPE_READ_ONLY, TYPE_SHADER_PROGRAM_UNIFORMS } from "../controls/sceneEditor";
+import {
+  TYPE_READ_ONLY,
+  TYPE_SHADER_PROGRAM_UNIFORMS,
+} from "../controls/sceneEditor";
 import Light, { LIGHT_DIRECTIONAL, LIGHT_SPOT } from "../lights/Light";
 import { RayMaterial } from "../materials";
 import { RayObject, SceneObject } from "../objects";
@@ -100,7 +103,7 @@ export default class RayShaderProgram extends ShaderProgram {
       "u_glassMode",
       "u_shadowMode",
       "u_maxShadowLayers",
-      "u_textureLayerCount"
+      "u_textureLayerCount",
     ];
 
     for (const loc of defaultLocs) {
@@ -123,7 +126,10 @@ export default class RayShaderProgram extends ShaderProgram {
     this.uniforms.u_maxShadowLayers = 8;
 
     const maxBlockBytes = gl.getParameter(gl.MAX_UNIFORM_BLOCK_SIZE);
-    this.maxObjects = Math.floor(maxBlockBytes / RayObject.OBJECT_BYTE_SIZE);
+    this.maxObjects = Math.min(
+      Math.floor(maxBlockBytes / RayObject.OBJECT_BYTE_SIZE),
+      Math.floor(maxBlockBytes / RayObject.OBJECT_TRANSFORM_BYTE_SIZE),
+    );
     this.maxLights = this.maxObjects;
     this.maxMaterials = Math.floor(
       maxBlockBytes / RayMaterial.MATERIAL_BYTE_SIZE,
@@ -197,11 +203,11 @@ export default class RayShaderProgram extends ShaderProgram {
 
   /**
    * initial setup for a buffer
-   * @param {*} binding 
-   * @param {*} capacity 
-   * @param {*} stride 
-   * @param {*} gl 
-   * @returns 
+   * @param {*} binding
+   * @param {*} capacity
+   * @param {*} stride
+   * @param {*} gl
+   * @returns
    */
   _initBuffer(binding, capacity, stride, gl = this._gl) {
     const size = capacity * stride;

@@ -293,57 +293,45 @@ Material calculateMaterial(int matId, vec2 uv) {
 
 // Convenience layout of a sphere
 struct Sphere {
-  int material;
   vec3 center;
   float radius;
-  mat4 transform;
 };
 
 // Convenience layout of a cube
 struct Cube {
-  int material;
   vec3 center;
   float halfSize;
-  mat4 transform;
 };
 
 // Convenience layout of a cone
 struct Cone {
-  int material;
   vec3 center;
   float r;
   float h;
-  mat4 transform;
 };
 
 // Convenience layout of a torus
 struct Torus {
-  int material;
   vec3 center;
   float R;
   float r;
-  mat4 transform;
 };
 
 // Convenience layout of a cylinder
 struct Cylinder {
-  int material;
   vec3 center;
   float r;
   float h;
   float bulge;
   bool faceted;
   int faces;
-  mat4 transform;
 };
 
 // Convenience layout of a plane
 struct Plane {
-  int material;
   vec3 center;
   float width;
   float depth;
-  mat4 transform;
 };
 
 // type flags used in the general object struct below
@@ -363,7 +351,7 @@ struct Object {
   ivec4 meta;         // x    => type;    y => material?; z=> cyl: faceted (could actually be for all) ; w => cyl: faces (prism) ; 
   vec4 centerRadius;  // xyz  => center;  w => cone, sphere, cyl: r, cube: half-size, torus: R, plane: width
   vec4 options;       // x    => cyl, cone: height, torus:r, plane:depth;     y=> cyl: bulge,   w => light: power;
-  mat4 transform;     // overall transformation to apply 
+  vec4 testCenterRadius; // center of the object transformed into world space so we can check rays against it rather than needing to always transform into object space 
 };
 
 // we want to avoid calculatingg the inverse for every single ray
@@ -549,9 +537,16 @@ bool intersectPlane(Plane p, Ray ray, out float t, out vec3 n) {
   return true;
 }
 
-// TODO
-Ray toObjectSpace(Ray r, ObjectTransformCache otc) {
-  mat4 worldToObject = otc.invTransform;
+// transform ray into local space by looking up cached transform
+// note this means we dont need to caclculate inverse all the time
+Ray toObjectSpace(Ray r, int otc, bool light) {
+  mat4 worldToObject;
+
+  if(light) {
+    worldToObject = lightTransformCache[otc].invTransform;
+  } else {
+    worldToObject = objTransformCache[otc].invTransform;
+  }
 
   Ray localRay;
   localRay.origin = (worldToObject * vec4(r.origin, 1.0f)).xyz;
@@ -560,27 +555,48 @@ Ray toObjectSpace(Ray r, ObjectTransformCache otc) {
   return localRay;
 }
 
+// transform local normal back to world normal
+vec3 localToWorldNormal(vec3 normal, int otc, bool light) {
+  mat3 normalTrans;
+
+  if(light) {
+    normalTrans = lightTransformCache[otc].invNormalTransform;
+  } else {
+    normalTrans = objTransformCache[otc].invNormalTransform;
+  }
+
+  return normal * normalTrans;
+}
+
 // switch on the object type and select the correct one from above
 // apply the transform before to put the light ray in the correct space
 // also calculate the corresponding uvs
 bool intersectObject(
   Object obj,
-  ObjectTransformCache otc,
+  int otc,
+  bool light,
   Ray worldRay,
   out float t,
   out vec3 worldNormal,
   out vec2 uv
 ) {
 
-  // TODO transform ray to local object space...
-  Ray localRay = toObjectSpace(worldRay, otc);
+  // check against cheap sphere before doing expensive ray transforms
+  Sphere test = Sphere(obj.testCenterRadius.xyz, obj.testCenterRadius.w);
+  float testT;
+  if(!intersectSphere(test, worldRay, testT)) {
+    return false;
+  }
+
+  // transform ray to local object space...
+  Ray localRay = toObjectSpace(worldRay, otc, light);
 
   float localT;
   vec3 localNormal;
   bool didHit = false;
 
   if(obj.meta.x == OBJECT_TYPE_SPHERE) {
-    Sphere s = Sphere(obj.meta.y, obj.centerRadius.xyz, obj.centerRadius.w, obj.transform);
+    Sphere s = Sphere(obj.centerRadius.xyz, obj.centerRadius.w);
     // s.radius = 5.0;
     didHit = intersectSphere(s, localRay, localT);
     if(didHit) {
@@ -589,7 +605,7 @@ bool intersectObject(
       uv = calculateSphereUV(p, s);
     }
   } else if(obj.meta.x == OBJECT_TYPE_CUBE) {
-    Cube c = Cube(obj.meta.y, obj.centerRadius.xyz, obj.centerRadius.w, obj.transform);
+    Cube c = Cube(obj.centerRadius.xyz, obj.centerRadius.w);
 
     didHit = intersectCube(c, localRay, localT, localNormal);
     if(didHit) {
@@ -597,7 +613,7 @@ bool intersectObject(
       uv = calculateCubeUV(p, localNormal, c);
     }
   } else if(obj.meta.x == OBJECT_TYPE_PLANE) {
-    Plane p = Plane(obj.meta.y, obj.centerRadius.xyz, obj.centerRadius.w, obj.options.x, obj.transform);
+    Plane p = Plane(obj.centerRadius.xyz, obj.centerRadius.w, obj.options.x);
 
     didHit = intersectPlane(p, localRay, localT, localNormal);
     if(didHit) {
@@ -616,13 +632,13 @@ bool intersectObject(
     return false;
 
   t = localT;
-  worldNormal = normalize(otc.invNormalTransform * localNormal);
+  worldNormal = localToWorldNormal(localNormal, otc, light);
 
   return true;
 }
 
 // calculate hitdata for a hit on a object
-HitData calculateHit(Object obj, Ray ray, ObjectTransformCache otc) {
+HitData calculateHit(Object obj, Ray ray, int otc, bool light) {
   HitData result = HitData(false, 1e10f, vec3(0.0f), vec3(0.0f), 0.0f, -1, vec2(0));
 
   // if the material is out of range then we ignore
@@ -636,7 +652,7 @@ HitData calculateHit(Object obj, Ray ray, ObjectTransformCache otc) {
   vec3 normal;
   vec2 uv;
 
-  if(!intersectObject(obj, otc, ray, t, normal, uv)) {
+  if(!intersectObject(obj, otc, light, ray, t, normal, uv)) {
     return result;
   }
 
@@ -702,7 +718,7 @@ HitData traceScene(Ray ray, bool includeLight) {
 
   if(includeLight) {
     for(int i = 0; i < u_lightCount; ++i) {
-      HitData candidate = calculateHit(lights[i], ray, lightTransformCache[i]);
+      HitData candidate = calculateHit(lights[i], ray, i, true);
       candidate.normal = vec3(0.0f);
       // set power, calculate influence on color later
       candidate.lightPower = lights[i].options.w;
@@ -715,7 +731,7 @@ HitData traceScene(Ray ray, bool includeLight) {
   // keep the closest hit in the scene 
   // wonder if we can depth sort objects to make faster?
   for(int i = 0; i < u_objectCount; ++i) {
-    HitData candidate = calculateHit(objects[i], ray, objTransformCache[i]);
+    HitData candidate = calculateHit(objects[i], ray, i, false);
     if(candidate.hit && candidate.t < hit.t) {
       hit = candidate;
     }
@@ -754,11 +770,12 @@ vec3 traceShadow(HitData hit, Object light, int sampleNum, int lightNum) {
   for(int layer = 0; layer < u_maxShadowLayers; layer++) {
     Ray shadow = Ray(position, lightDir);
     HitData blocker = traceScene(shadow, false);
-    Material mat = calculateMaterial(blocker.matId, blocker.uv);
 
     if(!blocker.hit || blocker.t > lightDist) {
       break;
     }
+
+    Material mat = calculateMaterial(blocker.matId, blocker.uv);
 
     // check if glass hit
     if(u_shadowMode == SHADOW_MODE_FAST || !(mat.optics.y > 1.01f)) {
