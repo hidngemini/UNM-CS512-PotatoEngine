@@ -114,22 +114,31 @@ function packObjects(
   shaderProgram,
   {
     itemSize = RayObject.OBJECT_BYTE_SIZE,
+    transformItemSize = RayObject.OBJECT_TRANSFORM_BYTE_SIZE,
     maxItems = shaderProgram.maxObjects,
     targetBuffer = shaderProgram.objectBuffer,
+    targetTransformBuffer = shaderProgram.objectTransformBuffer,
     countUniform = "u_objectCount",
   } = {},
 ) {
   const bytes = new ArrayBuffer(itemSize * maxItems);
   const view = new DataView(bytes);
 
+  const bytesT = new ArrayBuffer(transformItemSize * maxItems);
+  const viewT = new DataView(bytes);
+
   for (let i = 0; i < objects.length; i++) {
-    const offset = i * itemSize;
-    objects[i].packData(view, offset);
+    objects[i].packData(view, i * itemSize);
+    objects[i].packTransformData(viewT, i * transformItemSize);
   }
 
-  // throw the data into the buffer
+  // throw the data into the buffers
   gl.bindBuffer(gl.UNIFORM_BUFFER, targetBuffer);
   gl.bufferSubData(gl.UNIFORM_BUFFER, 0, new Uint8Array(bytes));
+  gl.bindBuffer(gl.UNIFORM_BUFFER, null);
+
+  gl.bindBuffer(gl.UNIFORM_BUFFER, targetTransformBuffer);
+  gl.bufferSubData(gl.UNIFORM_BUFFER, 0, new Uint8Array(bytesT));
   gl.bindBuffer(gl.UNIFORM_BUFFER, null);
 
   shaderProgram.uniforms[countUniform] = objects.length;
@@ -170,6 +179,7 @@ function packMaterials(gl, materials, shaderProgram) {
 function packLights(gl, lights, shaderProgram) {
   packObjects(gl, lights, shaderProgram, {
     targetBuffer: shaderProgram.lightBuffer,
+    targetTransformBuffer: shaderProgram.lightTransformBuffer,
     maxItems: shaderProgram.maxLights,
     countUniform: "u_lightCount",
   });

@@ -366,10 +366,22 @@ struct Object {
   mat4 transform;     // overall transformation to apply 
 };
 
+// we want to avoid calculatingg the inverse for every single ray
+// this wont change within a pass, so we can calculate it once at the start
+// of each pas
+struct ObjectTransformCache {
+  mat4 invTransform;
+  mat3 invNormalTransform;
+};
+
 // block of objects we use to receive information from the
 // js end 
 layout(std140) uniform objectBlock {
   Object objects[MAX_OBJECTS];
+};
+
+layout(std140) uniform objectTransformBlock {
+  ObjectTransformCache objTransformCache[MAX_OBJECTS];
 };
 
 ///////////////////
@@ -380,6 +392,10 @@ layout(std140) uniform objectBlock {
 // js end, for now we say they are all objects, see below
 layout(std140) uniform lightBlock {
   Object lights[MAX_LIGHTS];
+};
+
+layout(std140) uniform lightTransformBlock {
+  ObjectTransformCache lightTransformCache[MAX_LIGHTS];
 };
 
 ///////////////////////////
@@ -534,8 +550,8 @@ bool intersectPlane(Plane p, Ray ray, out float t, out vec3 n) {
 }
 
 // TODO
-Ray toObjectSpace(Ray r, mat4 transform) {
-  mat4 worldToObject = inverse(transform);
+Ray toObjectSpace(Ray r, ObjectTransformCache otc) {
+  mat4 worldToObject = otc.invTransform;
 
   Ray localRay;
   localRay.origin = (worldToObject * vec4(r.origin, 1.0f)).xyz;
@@ -549,6 +565,7 @@ Ray toObjectSpace(Ray r, mat4 transform) {
 // also calculate the corresponding uvs
 bool intersectObject(
   Object obj,
+  ObjectTransformCache otc,
   Ray worldRay,
   out float t,
   out vec3 worldNormal,
@@ -556,7 +573,7 @@ bool intersectObject(
 ) {
 
   // TODO transform ray to local object space...
-  Ray localRay = toObjectSpace(worldRay, obj.transform);
+  Ray localRay = toObjectSpace(worldRay, otc);
 
   float localT;
   vec3 localNormal;
@@ -599,13 +616,13 @@ bool intersectObject(
     return false;
 
   t = localT;
-  worldNormal = normalize(transpose(inverse(mat3(obj.transform))) * localNormal);
+  worldNormal = normalize(otc.invNormalTransform * localNormal);
 
   return true;
 }
 
 // calculate hitdata for a hit on a object
-HitData calculateHit(Object obj, Ray ray) {
+HitData calculateHit(Object obj, Ray ray, ObjectTransformCache otc) {
   HitData result = HitData(false, 1e10f, vec3(0.0f), vec3(0.0f), 0.0f, -1, vec2(0));
 
   // if the material is out of range then we ignore
@@ -619,7 +636,7 @@ HitData calculateHit(Object obj, Ray ray) {
   vec3 normal;
   vec2 uv;
 
-  if(!intersectObject(obj, ray, t, normal, uv)) {
+  if(!intersectObject(obj, otc, ray, t, normal, uv)) {
     return result;
   }
 
@@ -685,7 +702,7 @@ HitData traceScene(Ray ray, bool includeLight) {
 
   if(includeLight) {
     for(int i = 0; i < u_lightCount; ++i) {
-      HitData candidate = calculateHit(lights[i], ray);
+      HitData candidate = calculateHit(lights[i], ray, lightTransformCache[i]);
       candidate.normal = vec3(0.0f);
       // set power, calculate influence on color later
       candidate.lightPower = lights[i].options.w;
@@ -698,7 +715,7 @@ HitData traceScene(Ray ray, bool includeLight) {
   // keep the closest hit in the scene 
   // wonder if we can depth sort objects to make faster?
   for(int i = 0; i < u_objectCount; ++i) {
-    HitData candidate = calculateHit(objects[i], ray);
+    HitData candidate = calculateHit(objects[i], ray, objTransformCache[i]);
     if(candidate.hit && candidate.t < hit.t) {
       hit = candidate;
     }

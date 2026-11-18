@@ -8,7 +8,7 @@ import {
   TYPE_MATERIAL_SELECTOR,
   TYPE_PROGRAM_SELECTOR,
 } from "../controls/sceneEditor";
-import { mat4Identity } from "../util/transformations";
+import { mat3Transpose, mat4Identity, mat4Inverse, mat4ToMat3, mat4Transpose } from "../util/transformations";
 import { vec4distance, scaleVec4, sumVec4 } from "../util/vec4";
 import SceneObject from "./SceneObject";
 
@@ -27,6 +27,7 @@ export default class RayObject extends SceneObject {
   static OBJECT_TYPE_PLANE = 5;
 
   static OBJECT_BYTE_SIZE = 112; // 16 + 16 + 16 + 64
+  static OBJECT_TRANSFORM_BYTE_SIZE = 100; //  64 + 36
 
   static EDITOR_PROPERTIES = [
     { name: "position", type: TYPE_3TUPLE_SELECTOR },
@@ -260,6 +261,54 @@ export default class RayObject extends SceneObject {
     // mat4 transform (offset 48 -> 48 + 64 = 112)
     for (let i = 0; i < 16; i++) {
       view.setFloat32(48 + i * 4 + offset, mat[i], true);
+    }
+  }
+
+  /**
+   * 
+   * 
+   * 
+// update the object and light inverse transform caches
+// this way we dont need to calculate for every ray for every object lol
+void updateTransformCaches() {
+  // NOTE: I think this :
+  //       mat3 inv3 = mat3(inv);
+  //       is only true for affine transforms
+  //       ie scale, translate, rotate, shear etc
+  //       otherwise we need to calculate inverse(mat3(T));
+  // keep the closest hit in the scene 
+  // wonder if we can depth sort objects to make faster?
+  for(int i = 0; i < u_objectCount; ++i) {
+    mat4 inv = inverse(objects[i].transform);
+    mat3 inv3 = transpose(mat3(inv));
+    objTransformCache[i] = ObjectTransformCache(inv, inv3);
+  }
+}
+
+   */
+  packTransformData(view, offset){
+
+    console.log("sus")
+    let mat = this.M;
+
+    if (!this.M || mat.length != 16) {
+      console.warn(
+        `RayObject ${this.label}: this.M must be defined as a 16 element array; defaulting to identity`,
+      );
+      mat = mat4Identity();
+    }
+
+    inverse = mat4Inverse(mat)
+    inverse3 = mat3Transpose(mat4ToMat3(mat4))
+
+    // mat4 inverse (offset 0 -> 64)
+    for (let i = 0; i < 16; i++) {
+      view.setFloat32(i * 4 + offset, inverse[i], true);
+    }
+
+    // mat3 inverse3 (offset 68 -> 104)
+    for (let i = 0; i < 9; i++) {
+      view.setFloat32(68 + i * 4 + offset, inverse3[i], true);
     }
   }
 

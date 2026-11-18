@@ -55,6 +55,8 @@ export default class RayShaderProgram extends ShaderProgram {
     this.lightBuffer = undefined;
     this.objectBuffer = undefined;
     this.materialBuffer = undefined;
+    this.objectTransformBuffer = undefined;
+    this.lightTransformBuffer = undefined;
 
     this.maxLights = 146;
     this.maxObjects = 146;
@@ -162,11 +164,23 @@ export default class RayShaderProgram extends ShaderProgram {
       this.maxMaterials,
       RayMaterial.MATERIAL_BYTE_SIZE,
     );
+    this.objectTransformBuffer = this._initBuffer(
+      3,
+      this.maxObjects,
+      RayObject.OBJECT_TRANSFORM_BYTE_SIZE,
+    );
+    this.lightTransformBuffer = this._initBuffer(
+      4,
+      this.maxLights,
+      RayObject.OBJECT_TRANSFORM_BYTE_SIZE,
+    );
 
     const blockBindings = [
       ["lightBlock", 0],
       ["objectBlock", 1],
       ["materialBlock", 2],
+      ["objectTransformBlock", 3],
+      ["lightTransformBlock", 4],
     ];
 
     for (const [blockName, bindingPoint] of blockBindings) {
@@ -181,6 +195,14 @@ export default class RayShaderProgram extends ShaderProgram {
     gl.bindBuffer(gl.UNIFORM_BUFFER, null);
   }
 
+  /**
+   * initial setup for a buffer
+   * @param {*} binding 
+   * @param {*} capacity 
+   * @param {*} stride 
+   * @param {*} gl 
+   * @returns 
+   */
   _initBuffer(binding, capacity, stride, gl = this._gl) {
     const size = capacity * stride;
     const maxBlockSize = gl.getParameter(gl.MAX_UNIFORM_BLOCK_SIZE);
