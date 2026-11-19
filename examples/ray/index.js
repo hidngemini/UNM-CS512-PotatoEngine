@@ -38,8 +38,6 @@ function addTextures() {
   });
   textureSet.load("./brick.png", 0);
   textureSet.load("./brick.png", 1);
-  textureSet.load("./brick.png", 2);
-  textureSet.load("./brick.png", 3);
   scene.addTexture("textureSet", textureSet, { load: false });
 }
 

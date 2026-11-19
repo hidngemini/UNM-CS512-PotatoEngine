@@ -38,6 +38,7 @@ uniform int u_raySamples;
 uniform int u_glassMode;
 uniform int u_maxShadowLayers;
 uniform int u_shadowMode;
+uniform float u_shadowMixRatio;
 uniform float u_fov;
 
 // track the sizes of buffers, since you cant 
@@ -927,7 +928,7 @@ vec3 traceShadow(HitData hit, Object light, int sampleNum, int lightNum) {
       // or refraction, this produces reasonable looking, but not correct
       // color transmission
       if(!exit) {
-        transmittance *= mix(transmittance, mat.ka.xyz, 0.5f);
+        transmittance *= mix(transmittance, mat.ka.xyz, u_shadowMixRatio);
         // transmittance = normalize(transmittance);
       }
     } else {
@@ -961,7 +962,7 @@ vec3 traceShadow(HitData hit, Object light, int sampleNum, int lightNum) {
       // only on exit doesnt look right, unsure what the difference is
       // will have to look inito later
       if(!exit) {
-        transmittance *= mix(vec3(1.f), mat.ka.xyz, 0.5f);
+        transmittance *= mix(vec3(1.f), mat.ka.xyz, u_shadowMixRatio);
         // transmittance = normalize(transmittance);
       }
 

@@ -103,6 +103,7 @@ export default class RayShaderProgram extends ShaderProgram {
       "u_glassMode",
       "u_shadowMode",
       "u_maxShadowLayers",
+      "u_shadowMixRatio",
       "u_textureLayerCount",
       "u_fov",
     ];
@@ -119,6 +120,7 @@ export default class RayShaderProgram extends ShaderProgram {
       scene.canvas.width,
       scene.canvas.height,
     ]);
+    this.uniforms.u_shadowMixRatio = 0.99999
     this.uniforms.u_maxBounces = 3;
     this.uniforms.u_ambientStrength = 0.2;
     this.uniforms.u_raySamples = 1;
