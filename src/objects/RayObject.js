@@ -35,8 +35,7 @@ export default class RayObject extends SceneObject {
   static OBJECT_BYTE_SIZE = 64; // 16 + 16 + 16 + 16
   // 64 + 48 ( mat3 padded to vec4 for some reason...)
   // can bump max objects a bit if we optimize this.
-  static OBJECT_TRANSFORM_BYTE_SIZE = 112; 
-
+  static OBJECT_TRANSFORM_BYTE_SIZE = 112;
 
   static EDITOR_PROPERTIES = [
     { name: "position", type: TYPE_3TUPLE_SELECTOR },
@@ -106,10 +105,9 @@ export default class RayObject extends SceneObject {
    * @param {number} [options.depth=undefined]      the depth of a plane (-val is inf)
    * @param {number} [options.radiusMinor=undefined]  the radius of the tube of a torus
    * @param {number} [options.bulge=undefined]      the bulge ratio of a cylinder
-   * @param {number} [options.faceted=undefined]    if the object is faceted
-   * @param {number} [options.faces=undefined]      how many faces the faceted object has...
+   * @param {number} [options.faces=0]              how many faces the faceted object has (if 0 we say not faceted)...
    * @param {boolean} [options.light=false]         if the object is a light or not
-   * @param {number} [options.lightPower=0.5]      the power of the light
+   * @param {number} [options.lightPower=0]         the power of the object if its a light
    */
   constructor(
     label,
@@ -142,8 +140,7 @@ export default class RayObject extends SceneObject {
       depth = undefined,
       radiusMinor = undefined,
       bulge = undefined,
-      faceted = undefined,
-      faces = undefined,
+      faces = 0,
     } = {},
   ) {
     super(label, {
@@ -174,7 +171,6 @@ export default class RayObject extends SceneObject {
     this.depth = depth;
     this.radiusMinor = radiusMinor;
     this.bulge = bulge;
-    this.faceted = faceted;
     this.faces = faces;
 
     this.type = type;
@@ -182,28 +178,51 @@ export default class RayObject extends SceneObject {
 
   /**
    * roughly calculate the hit radius of the object
-   * @returns 
+   * @returns
    */
-  getRadius(){
-    switch(this.type){
+  getRadius() {
+    let radius;
+    switch (this.type) {
       case RayObject.OBJECT_TYPE_SPHERE:
-        return this.radius
+        radius = this.radius;
+        break;
       case RayObject.OBJECT_TYPE_CUBE:
         // (sqrt 2)
-        return this.halfSize * 1.414213 * 1.5
+        radius = this.halfSize * 1.414213 * 1.5;
+        break;
       case RayObject.OBJECT_TYPE_CONE:
-        return Math.max(this.radius, this.height)
+        radius = Math.max(this.radius, this.height);
+        break;
       case RayObject.OBJECT_TYPE_TORUS:
-        return this.radius + this.radiusMinor
+        radius = this.radius + this.radiusMinor;
+        break;
       case RayObject.OBJECT_TYPE_CYLINDER:
-        return Math.max(this.radius, this.height)
+        radius = Math.max(this.radius, this.height);
+        break;
       case RayObject.OBJECT_TYPE_PLANE:
-        // (sqrt 2)
-        if(this.width< 0 || this.depth < 0 ){
-          return 100;
+        if (this.width < 0 || this.depth < 0) {
+          radius = 100;
+        } else {
+          // (sqrt 2)
+          radius = Math.max(this.width, this.depth) * 1.414213 * 1.5;
         }
-        return Math.max(this.width, this.depth) * 1.414213 * 1.5
     }
+    return radius * Math.max(...this.scale);
+  }
+
+  /**
+   * Check if the object is only being transformed so we can avoid using the mat4 transform
+   * to move ray into object space and normal into world space, and instead use the js calculated center
+   */
+  isTranslateOnly() {
+    return (
+      this.rotation[0] == 0 &&
+      this.rotation[1] == 0 &&
+      this.rotation[2] == 0 &&
+      this.scale[0] == 1 &&
+      this.scale[1] == 1 &&
+      this.scale[2] == 1
+    );
   }
 
   /**
@@ -215,7 +234,7 @@ export default class RayObject extends SceneObject {
    *     ivec4 meta;         // x    => type;    y => material?; z=> ____ ; w => ____ ;
    *     vec4 centerRadius;  // xyz  => center;  w => cone, sphere, cyl: r, cube: half-size, torus: R, plane: width
    *     vec4 options;       // x    => cyl, cone: height, torus:r, plane:depth;     y=> cyl: bulge
-   *     mat4 transform;     // overall transformation to apply
+   *     vec4 testCenterRadius;
    *   };
    * </pre>
    *
@@ -238,8 +257,8 @@ export default class RayObject extends SceneObject {
     // ivec4 meta (offset 0)
     view.setInt32(0 + offset, this.type, true);
     view.setInt32(4 + offset, this.materialIndex, true);
-    view.setInt32(8 + offset, this.faceted ? 1 : 0, true);
-    view.setInt32(12 + offset, this.faces ?? 0, true);
+    view.setInt32(8 + offset, this.faces ?? 0, true);
+    view.setInt32(12 + offset, this.isTranslateOnly() ? 1 : 0, true);
 
     // vec4 centerRadius (offset 16)
     let size = 0;
@@ -295,10 +314,10 @@ export default class RayObject extends SceneObject {
 
     const worldCenter = transformPoint(this.center, mat);
 
-    view.setFloat32(48 + offset, worldCenter[0], true)
-    view.setFloat32(52 + offset, worldCenter[1], true)
-    view.setFloat32(56 + offset, worldCenter[2], true)
-    view.setFloat32(60 + offset, this.getRadius(), true)
+    view.setFloat32(48 + offset, worldCenter[0], true);
+    view.setFloat32(52 + offset, worldCenter[1], true);
+    view.setFloat32(56 + offset, worldCenter[2], true);
+    view.setFloat32(60 + offset, this.getRadius(), true);
   }
 
   /**

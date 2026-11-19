@@ -20,6 +20,7 @@ const SHADER_PROGRAM_RAY = "ray";
 const scene = new Scene("glcanvas");
 // scene.camera.move(0, 0, -25);
 scene.rotationX += Math.PI / 6;
+// scene.camera.fov
 
 const rayProgram = scene.createProgram(
   SHADER_PROGRAM_RAY,

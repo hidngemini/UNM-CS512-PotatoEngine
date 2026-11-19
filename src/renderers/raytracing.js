@@ -69,6 +69,8 @@ function updateUniforms(gl, shaderProgram, scene) {
     scene.camera.yaw,
   ]);
 
+  shaderProgram.uniforms.u_fov = -scene.camera.fov;
+
   packObjects(gl, [...this.objects], shaderProgram);
   packLights(gl, [...this.lights], shaderProgram);
   packMaterials(gl, [...this.materials], shaderProgram);

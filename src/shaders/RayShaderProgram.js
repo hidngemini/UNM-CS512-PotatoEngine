@@ -104,6 +104,7 @@ export default class RayShaderProgram extends ShaderProgram {
       "u_shadowMode",
       "u_maxShadowLayers",
       "u_textureLayerCount",
+      "u_fov",
     ];
 
     for (const loc of defaultLocs) {

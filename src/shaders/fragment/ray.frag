@@ -33,6 +33,7 @@ uniform int u_raySamples;
 uniform int u_glassMode;
 uniform int u_maxShadowLayers;
 uniform int u_shadowMode;
+uniform float u_fov;
 
 // track the sizes of buffers, since you cant 
 // really check the buffer itself for this info
@@ -342,13 +343,15 @@ const int OBJECT_TYPE_TORUS = 3;
 const int OBJECT_TYPE_CYLINDER = 4;
 const int OBJECT_TYPE_PLANE = 5;
 
+const int OBJECT_TRANSFORM_TRANSLATE_ONLY = 1;
+
 // honestly i could or more information into a 
 // single int since object type probably < 10, 
 // but we arent that desperate
 
 // all encompassing object layout passed from js.
 struct Object {
-  ivec4 meta;         // x    => type;    y => material?; z=> cyl: faceted (could actually be for all) ; w => cyl: faces (prism) ; 
+  ivec4 meta;         // x    => type;    y => material?; z=> cyl: faceted (& count of faces) ; w => translate transform only?; 
   vec4 centerRadius;  // xyz  => center;  w => cone, sphere, cyl: r, cube: half-size, torus: R, plane: width
   vec4 options;       // x    => cyl, cone: height, torus:r, plane:depth;     y=> cyl: bulge,   w => light: power;
   vec4 testCenterRadius; // center of the object transformed into world space so we can check rays against it rather than needing to always transform into object space 
@@ -584,19 +587,30 @@ bool intersectObject(
   // check against cheap sphere before doing expensive ray transforms
   Sphere test = Sphere(obj.testCenterRadius.xyz, obj.testCenterRadius.w);
   float testT;
-  if(!intersectSphere(test, worldRay, testT)) {
+  if(obj.meta.w != OBJECT_TRANSFORM_TRANSLATE_ONLY && !intersectSphere(test, worldRay, testT)) {
     return false;
   }
 
   // transform ray to local object space...
-  Ray localRay = toObjectSpace(worldRay, otc, light);
+  Ray localRay;
+  vec3 center;
+
+  // if we have only performed translation then we can just use the 
+  // precalculated test point, TODO technically we could avoid the above intersect as well
+  if(obj.meta.w == OBJECT_TRANSFORM_TRANSLATE_ONLY) {
+    center = obj.testCenterRadius.xyz;
+    localRay = worldRay;
+  } else {
+    center = obj.centerRadius.xyz;
+    localRay = toObjectSpace(worldRay, otc, light);
+  }
 
   float localT;
   vec3 localNormal;
   bool didHit = false;
 
   if(obj.meta.x == OBJECT_TYPE_SPHERE) {
-    Sphere s = Sphere(obj.centerRadius.xyz, obj.centerRadius.w);
+    Sphere s = Sphere(center, obj.centerRadius.w);
     // s.radius = 5.0;
     didHit = intersectSphere(s, localRay, localT);
     if(didHit) {
@@ -605,7 +619,7 @@ bool intersectObject(
       uv = calculateSphereUV(p, s);
     }
   } else if(obj.meta.x == OBJECT_TYPE_CUBE) {
-    Cube c = Cube(obj.centerRadius.xyz, obj.centerRadius.w);
+    Cube c = Cube(center, obj.centerRadius.w);
 
     didHit = intersectCube(c, localRay, localT, localNormal);
     if(didHit) {
@@ -613,7 +627,7 @@ bool intersectObject(
       uv = calculateCubeUV(p, localNormal, c);
     }
   } else if(obj.meta.x == OBJECT_TYPE_PLANE) {
-    Plane p = Plane(obj.centerRadius.xyz, obj.centerRadius.w, obj.options.x);
+    Plane p = Plane(center, obj.centerRadius.w, obj.options.x);
 
     didHit = intersectPlane(p, localRay, localT, localNormal);
     if(didHit) {
@@ -1014,10 +1028,6 @@ void main() {
   mat3 rotY = mat3(cy, 0.0f, -sy, 0.0f, 1.0f, 0.0f, sy, 0.0f, cy);
   mat3 camera = rotY * rotX;
 
-  // NOTE: single exact pixel ray sample 
-  // vec2 uv = (gl_FragCoord.xy - 0.5f * u_resolution) / u_resolution.y;
-  // Ray ray = Ray(u_target + camera * vec3(0.0f, 0.0f, 7.0f), camera * normalize(vec3(uv, -1.5f)));
-
   // trace avg
   vec3 traceColor = vec3(0);
   for(int i = 0; i < u_raySamples; i++) {
@@ -1025,7 +1035,9 @@ void main() {
     vec2 samp = stratifiedSampleVec2(i, u_raySamples) - 0.5f;
     vec2 sampleUV = (gl_FragCoord.xy + samp - 0.5f * u_resolution) / u_resolution.y;
 
-    Ray ray = Ray(u_target + camera * vec3(0.0f, 0.0f, 7.0f), camera * normalize(vec3(sampleUV, -1.5f)));
+    // changed to make camera the orbit point to make movement less of a headache
+    // can change back by adding + camera * vec3(0.0f, 0.0f, 7.f) back to th ray
+    Ray ray = Ray(u_target, camera * normalize(vec3(sampleUV, u_fov)));
 
     traceColor += trace(ray, i);
   }
