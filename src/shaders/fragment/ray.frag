@@ -23,6 +23,11 @@ precision highp sampler2DArray;
 // see materials section below
 #define INTERNAL_MATERIALS 6
 
+// convience numbers so they aint magic
+#define EPSILON 1e-7f
+#define EPSILON_NORM 0.001f
+#define PI 3.14159f
+
 uniform float u_time;
 uniform vec2 u_resolution;
 uniform int u_maxBounces;
@@ -427,8 +432,8 @@ struct HitData {
 // uv calculation for a sphere
 vec2 calculateSphereUV(vec3 localPoint, Sphere sphere) {
   vec3 n = normalize((localPoint - sphere.center) / sphere.radius);
-  float u = atan(n.z, n.x) / (2.0f * 3.14159f) + 0.5f;
-  float v = asin(clamp(n.y, -1.0f, 1.0f)) / 3.14159f + 0.5f;
+  float u = atan(n.z, n.x) / (2.0f * PI) + 0.5f;
+  float v = asin(clamp(n.y, -1.0f, 1.0f)) / PI + 0.5f;
   return vec2(u, v);
 }
 
@@ -470,6 +475,25 @@ vec2 calculateCubeUV(
   }
 
   return uv + 0.5f;
+}
+
+// cone uv, much simpler then cone intersect lol
+vec2 calculateConeUV(
+  vec3 localPoint,
+  vec3 localNormal,
+  Cone cone
+) {
+  vec3 p = localPoint - cone.center;
+
+  // the base, flat map
+  if(localNormal.y < -0.9f) {
+    return p.xz / (2.0f * cone.r) + 0.5f;
+  }
+
+  // side, curve around u and up and down with v
+  float u = atan(p.z, p.x) / (2.0f * PI) + 0.5f;
+  float v = (p.y + 0.5f * cone.h) / cone.h;
+  return vec2(u, v);
 }
 
 ///////////////////////////////
@@ -526,6 +550,7 @@ bool intersectCube(Cube cube, Ray ray, out float t, out vec3 normal) {
   return true;
 }
 
+// finite / infinite plane intersection
 bool intersectPlane(Plane p, Ray ray, out float t, out vec3 n) {
   if(abs(ray.direction.y) < 0.0001f)
     return false;
@@ -547,6 +572,70 @@ bool intersectPlane(Plane p, Ray ray, out float t, out vec3 n) {
     n = -n;
 
   return true;
+}
+
+// cone intersection
+// vague formula: https://mrl.cs.nyu.edu/~dzorin/intro-graphics/lectures/lecture11/sld004.htm
+bool intersectCone(
+  Cone cone,
+  Ray ray,
+  out float t,
+  out vec3 normal
+) {
+  vec3 oc = ray.origin - cone.center;
+  float bestT = 1e30f;
+  bool hit = false;
+
+  // side: x^2 + z^2 = k^2(apexY - y)^2
+  float k = cone.r / cone.h;
+  float apexY = 0.5f * cone.h;
+  float a = dot(ray.direction.xz, ray.direction.xz) - k * k * ray.direction.y * ray.direction.y;
+  float b = 2.0f * (dot(oc.xz, ray.direction.xz) + k * k * (apexY - oc.y) * ray.direction.y);
+  float c = dot(oc.xz, oc.xz) - k * k * (apexY - oc.y) * (apexY - oc.y);
+  float d = b * b - 4.0f * a * c;
+
+  // descrim tells how manyt sides weve hit
+  if(d >= 0.0f && abs(a) > EPSILON) {
+    float root = sqrt(d);
+    float t0 = (-b - root) / (2.0f * a);
+    float t1 = (-b + root) / (2.0f * a);
+
+    // try both sides cause infinite cone u alwyas hit both if here
+    for(int i = 0; i < 2; ++i) {
+      float sideT = (i == 0) ? t0 : t1;
+      float y = oc.y + sideT * ray.direction.y;
+
+      if(sideT > EPSILON_NORM &&
+        sideT < bestT &&
+        y >= -0.5f * cone.h &&
+        y <= 0.5f * cone.h) {
+        vec3 p = oc + ray.direction * sideT;
+        bestT = sideT;
+        normal = normalize(vec3(p.x, k * k * (apexY - p.y), p.z));
+        hit = true;
+      }
+    }
+  }
+
+  // the base of the cone
+  if(abs(ray.direction.y) > EPSILON) {
+    float capT = (-0.5f * cone.h - oc.y) / ray.direction.y;
+    vec2 capP = oc.xz + capT * ray.direction.xz;
+
+    if(capT > EPSILON_NORM &&
+      capT < bestT &&
+      dot(capP, capP) <= cone.r * cone.r) {
+      bestT = capT;
+      normal = vec3(0.0f, -1.0f, 0.0f);
+      hit = true;
+    }
+  }
+
+  if(hit) {
+    t = bestT;
+  }
+
+  return hit;
 }
 
 // transform ray into local space by looking up cached transform
@@ -646,7 +735,13 @@ bool intersectObject(
       uv = calculatePlaneUV(point, p);
     }
   } else if(obj.meta.x == OBJECT_TYPE_CONE) {
-    // TODO
+    Cone c = Cone(center, obj.centerRadius.w, obj.options.x);
+
+    didHit = intersectCone(c, localRay, localT, localNormal);
+    if(didHit) {
+      vec3 point = localRay.origin + localRay.direction * localT;
+      uv = calculateConeUV(point, localNormal, c);
+    }
   } else if(obj.meta.x == OBJECT_TYPE_TORUS) {
     // TODO
   } else if(obj.meta.x == OBJECT_TYPE_CYLINDER) {
@@ -783,7 +878,7 @@ vec3 traceShadow(HitData hit, Object light, int sampleNum, int lightNum) {
   float normalDotLight = dot(hit.normal, lightDir);
 
   vec3 position = hit.point +
-    hit.normal * (normalDotLight >= 0.0f ? 0.001f : -0.001f);
+    hit.normal * (normalDotLight >= 0.0f ? EPSILON_NORM : -EPSILON_NORM);
 
   vec3 transmittance = vec3(1.f);
 
@@ -850,7 +945,7 @@ vec3 traceShadow(HitData hit, Object light, int sampleNum, int lightNum) {
           // These look ok but idk if correct...
           // really weird effects on sphere probably best to avoid by default
           lightDir = reflectGlass(I, N);
-          position = blocker.point + N * 0.001f;
+          position = blocker.point + N * EPSILON_NORM;
           // technically you should continue here but it looks much better if you 
           // dont continue
           continue;
@@ -878,7 +973,7 @@ vec3 traceShadow(HitData hit, Object light, int sampleNum, int lightNum) {
       }
     }
 
-    position = blocker.point + lightDir * 0.001f;
+    position = blocker.point + lightDir * EPSILON_NORM;
     // oh this wouldnt work properly since we dont always head towards the light after refraction
     // or reflection? idk too tired to reason abt it rn
     // am i missing the thing that stops when we reach the light did that get deleted? my head hurts
@@ -943,9 +1038,9 @@ vec3 trace(Ray ray, int sampleNum) {
 
       if(u_glassMode == GLASS_MODE_DOMINANT) {
         if(TIR || F > 0.5f) {
-          ray = Ray(hit.point + N * 0.001f, reflectGlass(I, N));
+          ray = Ray(hit.point + N * EPSILON_NORM, reflectGlass(I, N));
         } else {
-          ray = Ray(hit.point - N * 0.001f, refractGlass(I, N, eta, cosThetaI, etaSin2I));
+          ray = Ray(hit.point - N * EPSILON_NORM, refractGlass(I, N, eta, cosThetaI, etaSin2I));
           attenuation *= mat.ka.xyz;
         }
 
@@ -955,8 +1050,8 @@ vec3 trace(Ray ray, int sampleNum) {
         // probably make a stack of rays to evaluate
 
         // essentially the following:
-        // vec3 reflectionColor = trace(Ray(hit.point + N * 0.001f, reflectGlass(I, N)), sampleNum);
-        // vec3 refractionColor = trace(Ray(hit.point - N * 0.001f, refractGlass(I, N, eta, cosThetaI, etaSin2I)), sampleNum);
+        // vec3 reflectionColor = trace(Ray(hit.point + N * EPSILON_NORM, reflectGlass(I, N)), sampleNum);
+        // vec3 refractionColor = trace(Ray(hit.point - N * EPSILON_NORM, refractGlass(I, N, eta, cosThetaI, etaSin2I)), sampleNum);
         // color += attenuation * (F * reflectionColor + (1.0f - F) * refractionColor);
         // break;
 
@@ -979,11 +1074,11 @@ vec3 trace(Ray ray, int sampleNum) {
         if(TIR || choice < F) {
           // reflection
           direction = reflectGlass(I, N);
-          point = hit.point + N * 0.001f;
+          point = hit.point + N * EPSILON_NORM;
         } else {
           // refraction
           direction = refractGlass(I, N, eta, cosThetaI, etaSin2I);
-          point = hit.point - N * 0.001f;
+          point = hit.point - N * EPSILON_NORM;
           // NOTE: tint from passing through or reflecting off
           // maybe reflect and refract should have diff color influence?
           // we have mat.kd and mat.ks to work with, reflect could make sense as ks...
@@ -1027,7 +1122,7 @@ vec3 trace(Ray ray, int sampleNum) {
     vec3 N = normalize(hit.normal);
     vec3 I = normalize(ray.direction);
     attenuation *= mat.optics.z * mat.ka.xyz;
-    ray = Ray(hit.point + N * 0.001f, reflect(I, N));
+    ray = Ray(hit.point + N * EPSILON_NORM, reflect(I, N));
   }
 
   return color;
