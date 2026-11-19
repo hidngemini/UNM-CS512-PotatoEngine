@@ -477,16 +477,25 @@ vec2 calculateCubeUV(
 ///////////////////////////////
 
 // basic sphere intersection
+// altered to handle non uniform scaling from world to object transform
+// and also not recalc things lol
 bool intersectSphere(Sphere s, Ray ray, out float t) {
   vec3 oc = ray.origin - s.center;
+
+  float a = dot(ray.direction, ray.direction);
   float b = dot(oc, ray.direction);
-  float d = b * b - dot(oc, oc) + s.radius * s.radius;
+  float c = dot(oc, oc) - s.radius * s.radius;
+  float d = b * b - a * c;
+
   if(d < 0.0f)
     return false;
 
-  t = -b - sqrt(d);
+  float sqrtD = sqrt(d);
+
+  t = (-b - sqrtD) / a;
   if(t < 0.001f)
-    t = -b + sqrt(d);  // ray starts inside
+    t = (-b + sqrtD) / a;
+
   return t > 0.001f;
 }
 
@@ -559,6 +568,8 @@ Ray toObjectSpace(Ray r, int otc, bool light) {
 }
 
 // transform local normal back to world normal
+// note that we must normalize the new world normal and actually 
+// multipy in the right order lol that took so long to see
 vec3 localToWorldNormal(vec3 normal, int otc, bool light) {
   mat3 normalTrans;
 
@@ -568,7 +579,7 @@ vec3 localToWorldNormal(vec3 normal, int otc, bool light) {
     normalTrans = objTransformCache[otc].invNormalTransform;
   }
 
-  return normal * normalTrans;
+  return normalize(normalTrans * normal);
 }
 
 // switch on the object type and select the correct one from above
@@ -1013,8 +1024,10 @@ vec3 trace(Ray ray, int sampleNum) {
       break;
     }
 
+    vec3 N = normalize(hit.normal);
+    vec3 I = normalize(ray.direction);
     attenuation *= mat.optics.z * mat.ka.xyz;
-    ray = Ray(hit.point + hit.normal * 0.001f, reflect(ray.direction, hit.normal));
+    ray = Ray(hit.point + N * 0.001f, reflect(I, N));
   }
 
   return color;
