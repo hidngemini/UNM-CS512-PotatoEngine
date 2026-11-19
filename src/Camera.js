@@ -24,6 +24,7 @@ class Camera {
       "zFar",
       "yaw",
       "pitch",
+      "speed",
     ];
   
   /**
@@ -46,6 +47,7 @@ class Camera {
     zNear = 0.1,
     zFar = 100,
     orthoSize = 2.5,
+    speed = 5,
   ) {
     this.x = x;
     this.y = y;
@@ -59,6 +61,7 @@ class Camera {
     this.zNear = zNear;
     this.zFar = zFar;
     this.orthoSize = orthoSize;
+    this.speed = speed
 
     this.projection = this.createPerspectiveProjection();
   }

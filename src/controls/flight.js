@@ -83,7 +83,7 @@ export function setupMouseControls(
  */
 export function setupKeyboardControls(
   scene,
-  { speed = 5, response = 0.15 } = {},
+  { speed = scene.camera.speed, response = 0.15 } = {},
 ) {
   const pressed = new Set();
   const velocity = [0, 0, 0];
@@ -113,16 +113,24 @@ export function setupKeyboardControls(
    * @param {*} event
    */
   function handleKeyDown(event) {
+    // we will only update this on a key press so ok to handle here
+    speed = scene.camera.speed;
+
     const key = normalizeKey(event.key);
 
     if (key == "o") {
       orthographic = true;
     } else if (key == "p") {
       orthographic = false;
+    } else if (key == "q") {
+      scene.camera.speed /= 2;
+    } else if (key == "e") {
+      scene.camera.speed *= 2;
     }
 
     if (!handledKeys.has(key)) return;
-    if(key !== "0"){
+    // need these for the editor
+    if (key !== "0" && key !== "-") {
       event.preventDefault();
     }
     pressed.add(key);
@@ -179,8 +187,7 @@ export function setupKeyboardControls(
     let y = vertical;
     let z = -strafe * Math.sin(yaw) + forward * Math.cos(yaw);
 
-    let adjustedSpeed = pressed.has("alt") ? speed * 2 : speed;
-    const target = [x * adjustedSpeed, y * adjustedSpeed, z * adjustedSpeed];
+    const target = [x * speed, y * speed, z * speed];
     const expSmoothing = 1 - Math.exp(-dt / response);
 
     for (let i = 0; i < 3; i++) {
