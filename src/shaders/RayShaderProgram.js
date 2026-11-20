@@ -3,6 +3,7 @@
  */
 
 import {
+  TYPE_DROPDOWN_SELECTOR,
   TYPE_READ_ONLY,
   TYPE_SHADER_PROGRAM_UNIFORMS,
 } from "../controls/sceneEditor";
@@ -21,13 +22,46 @@ import ShaderProgram from "./ShaderProgram";
  * @alias module:shaders/PhongShaderProgram
  */
 export default class RayShaderProgram extends ShaderProgram {
+  static GLASS_MODE_DOMINANT = 0;
+  static GLASS_MODE_CONTRIBUTION = 1;
+  static GLASS_MODE_SAMPLE = 2;
+  static GLASS_MODE_NONE = 3;
+
+  static SHADOW_MODE_FAST = 0;
+  static SHADOW_MODE_FAST_GLASS = 1;
+  static SHADOW_MODE_SIMPLE_GLASS = 2;
+  static SHADOW_MODE_TIR_GLASS = 3;
+
   static EDITOR_PROPERTIES = [
     "hasMaterial",
     "hasLight",
     { name: "maxLights", type: TYPE_READ_ONLY },
     { name: "maxObjects", type: TYPE_READ_ONLY },
     { name: "maxMaterials", type: TYPE_READ_ONLY },
-    { name: "uniforms", type: TYPE_SHADER_PROGRAM_UNIFORMS },
+    {
+      name: "uniforms",
+      type: TYPE_SHADER_PROGRAM_UNIFORMS,
+      u_glassMode: {
+        type: TYPE_DROPDOWN_SELECTOR,
+        options: [
+          [RayShaderProgram.GLASS_MODE_DOMINANT, "GLASS_MODE_DOMINANT"],
+          [RayShaderProgram.GLASS_MODE_CONTRIBUTION, "GLASS_MODE_CONTRIBUTION"],
+          [RayShaderProgram.GLASS_MODE_SAMPLE, "GLASS_MODE_SAMPLE"],
+          [RayShaderProgram.GLASS_MODE_NONE, "GLASS_MODE_NONE"],
+        ],
+        cast: Number,
+      },
+      u_shadowMode: {
+        type: TYPE_DROPDOWN_SELECTOR,
+        options: [
+          [RayShaderProgram.SHADOW_MODE_FAST, "SHADOW_MODE_FAST"],
+          [RayShaderProgram.SHADOW_MODE_FAST_GLASS, "SHADOW_MODE_FAST_GLASS"],
+          [RayShaderProgram.SHADOW_MODE_SIMPLE_GLASS, "SHADOW_MODE_SIMPLE_GLASS"],
+          [RayShaderProgram.SHADOW_MODE_TIR_GLASS, "SHADOW_MODE_TIR_GLASS"],
+        ],
+        cast: Number,
+      },
+    },
   ];
   /**
    * Create a new shader program
@@ -90,6 +124,8 @@ export default class RayShaderProgram extends ShaderProgram {
     gl.enableVertexAttribArray(0);
 
     const defaultLocs = [
+      "u_glassMode",
+      "u_shadowMode",
       "u_time",
       "u_resolution",
       "u_maxBounces",
@@ -100,8 +136,6 @@ export default class RayShaderProgram extends ShaderProgram {
       "u_lightCount",
       "u_materialCount",
       "u_raySamples",
-      "u_glassMode",
-      "u_shadowMode",
       "u_maxShadowLayers",
       "u_shadowMixRatio",
       "u_textureLayerCount",
@@ -116,17 +150,17 @@ export default class RayShaderProgram extends ShaderProgram {
 
     gl.useProgram(this.program);
 
+    this.uniforms.u_glassMode = 2;
+    this.uniforms.u_shadowMode = 1;
     this.uniforms.u_resolution = new Float32Array([
       scene.canvas.width,
       scene.canvas.height,
     ]);
-    this.uniforms.u_shadowMixRatio = 0.99999
+    this.uniforms.u_shadowMixRatio = 0.99999;
     this.uniforms.u_maxBounces = 3;
     this.uniforms.u_ambientStrength = 0.2;
     this.uniforms.u_raySamples = 1;
-    this.uniforms.u_glassMode = 2;
-    this.uniforms.u_shadowMode = 1;
-    this.uniforms.u_maxShadowLayers = 8;
+    this.uniforms.u_maxShadowLayers = 4;
 
     const maxBlockBytes = gl.getParameter(gl.MAX_UNIFORM_BLOCK_SIZE);
     this.maxObjects = Math.min(

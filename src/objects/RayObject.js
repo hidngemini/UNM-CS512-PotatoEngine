@@ -2,9 +2,9 @@
  * @module objects/RayObject
  */
 
-import { Scene } from "..";
 import {
   TYPE_3TUPLE_SELECTOR,
+  TYPE_DROPDOWN_SELECTOR,
   TYPE_MATERIAL_SELECTOR,
   TYPE_PROGRAM_SELECTOR,
 } from "../controls/sceneEditor";
@@ -15,7 +15,6 @@ import {
   mat4ToMat3,
   transformPoint,
 } from "../util/transformations";
-import { vec4distance, scaleVec4, sumVec4 } from "../util/vec4";
 import SceneObject from "./SceneObject";
 
 /**
@@ -48,6 +47,28 @@ export default class RayObject extends SceneObject {
     { name: "rotation", type: TYPE_3TUPLE_SELECTOR },
     { name: "scale", type: TYPE_3TUPLE_SELECTOR },
     { name: "center", type: TYPE_3TUPLE_SELECTOR },
+    {
+      name: "type",
+      type: TYPE_DROPDOWN_SELECTOR,
+      options: [
+        [RayObject.OBJECT_TYPE_SPHERE, "OBJECT_TYPE_SPHERE"],
+        [RayObject.OBJECT_TYPE_CUBE, "OBJECT_TYPE_CUBE"],
+        [RayObject.OBJECT_TYPE_CONE, "OBJECT_TYPE_CONE"],
+        [RayObject.OBJECT_TYPE_TORUS, "OBJECT_TYPE_TORUS"],
+        [RayObject.OBJECT_TYPE_CYLINDER, "OBJECT_TYPE_CYLINDER"],
+        [RayObject.OBJECT_TYPE_PLANE, "OBJECT_TYPE_PLANE"],
+        [RayObject.OBJECT_TYPE_INVERTED_SPHERE, "OBJECT_TYPE_INVERTED_SPHERE"],
+        [RayObject.OBJECT_TYPE_INVERTED_CUBE, "OBJECT_TYPE_INVERTED_CUBE"],
+        [RayObject.OBJECT_TYPE_INVERTED_CONE, "OBJECT_TYPE_INVERTED_CONE"],
+        [RayObject.OBJECT_TYPE_INVERTED_TORUS, "OBJECT_TYPE_INVERTED_TORUS"],
+        [
+          RayObject.OBJECT_TYPE_INVERTED_CYLINDER,
+          "OBJECT_TYPE_INVERTED_CYLINDER",
+        ],
+        [RayObject.OBJECT_TYPE_INVERTED_PLANE, "OBJECT_TYPE_INVERTED_PLANE"],
+      ],
+      cast: Number,
+    },
     { name: "shouldDraw" },
     { name: "programLabel", type: TYPE_PROGRAM_SELECTOR },
     { name: "materialLabel", type: TYPE_MATERIAL_SELECTOR },
@@ -63,9 +84,7 @@ export default class RayObject extends SceneObject {
     "depth",
     "radiusMinor",
     "bulge",
-    "faceted",
     "faces",
-    "type",
   ];
 
   /**

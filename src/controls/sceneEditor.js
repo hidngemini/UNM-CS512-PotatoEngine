@@ -23,6 +23,8 @@ export const TYPE_COLOR_RAMP_PREVIEW = "TYPE_COLOR_RAMP_PREVIEW";
 export const TYPE_2D_TEXTURE_SOURCES = "TYPE_2D_TEXTURE_SOURCES";
 export const TYPE_SHADER_PROGRAM_UNIFORMS = "TYPE_SHADER_PROGRAM_UNIFORMS";
 
+export const TYPE_DROPDOWN_SELECTOR = "TYPE_DROPDOWN_SELECTOR";
+
 // set of property types that cannot be inferred from
 // the type of the value in the object (or that im too lazy to check for)
 const PROPERTY_TYPES = {
@@ -137,7 +139,7 @@ function parsePropertyType(target, property, forceType = undefined) {
  * @param {Scene} scene
  * @param {string} type
  */
-function getOptionsFromScene(scene, type) {
+function getOptionsFromScene(scene, type, config) {
   switch (type) {
     case TYPE_MATERIAL_SELECTOR:
       return scene.materials.entries();
@@ -145,6 +147,8 @@ function getOptionsFromScene(scene, type) {
       return scene.objects.entries();
     case TYPE_PROGRAM_SELECTOR:
       return scene.programs.entries();
+    case TYPE_DROPDOWN_SELECTOR:
+      return config.options.map((entry) => [entry[0], { label: entry[1] }]);
   }
 }
 
@@ -225,7 +229,10 @@ export function createPanel(
         appendInputControlRow(
           target[property],
           uniform,
-          { label: `${property}.${uniform}` },
+          {
+            label: `${property}.${uniform}`,
+            ...(config[uniform] ?? {}),
+          },
           scene,
           panel,
         );
@@ -264,13 +271,15 @@ function appendInputControlRow(target, property, config, scene, panel) {
   if (
     type === TYPE_MATERIAL_SELECTOR ||
     type === TYPE_OBJECT_SELECTOR ||
-    type === TYPE_PROGRAM_SELECTOR
+    type === TYPE_PROGRAM_SELECTOR ||
+    type === TYPE_DROPDOWN_SELECTOR
   ) {
     const select = document.createElement("select");
     select.className = "form-select form-select-sm";
 
-    const options = getOptionsFromScene(scene, type);
+    const options = getOptionsFromScene(scene, type, config);
     options.forEach(([key, item]) => {
+      console.log(key, item);
       const option = document.createElement("option");
       option.value = key;
       option.innerText = item.label;
@@ -278,7 +287,11 @@ function appendInputControlRow(target, property, config, scene, panel) {
     });
 
     select.addEventListener("input", (event) => {
-      target[property] = event.target.value;
+      console.log(property, event.target.value);
+
+      target[property] = config.cast
+        ? config.cast(event.target.value)
+        : event.target.value;
     });
 
     syncFunction = () => {
