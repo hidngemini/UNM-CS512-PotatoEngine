@@ -279,7 +279,6 @@ function appendInputControlRow(target, property, config, scene, panel) {
 
     const options = getOptionsFromScene(scene, type, config);
     options.forEach(([key, item]) => {
-      console.log(key, item);
       const option = document.createElement("option");
       option.value = key;
       option.innerText = item.label;
@@ -287,8 +286,6 @@ function appendInputControlRow(target, property, config, scene, panel) {
     });
 
     select.addEventListener("input", (event) => {
-      console.log(property, event.target.value);
-
       target[property] = config.cast
         ? config.cast(event.target.value)
         : event.target.value;
