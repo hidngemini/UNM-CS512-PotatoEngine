@@ -123,10 +123,10 @@ function initSceneObjects() {
     position: [0, 0, -5],
     materialLabel: MAT_BLUE_GLASS,
   });
-  let cube3 = new RayObject("testCube3", RayObject.OBJECT_TYPE_CUBE, {
+  let cube3 = new RayObject("testCube3", RayObject.OBJECT_TYPE_INVERTED_CUBE, {
     halfSize: 2,
     position: [4, -1, -10],
-    materialIndex: -4,
+    materialIndex: -2,
   });
   let cube2 = new RayObject("testCube2", RayObject.OBJECT_TYPE_CUBE, {
     halfSize: 1,

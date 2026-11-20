@@ -25,12 +25,18 @@ import SceneObject from "./SceneObject";
  * @alias module:objects/RayObject
  */
 export default class RayObject extends SceneObject {
-  static OBJECT_TYPE_SPHERE = 0;
-  static OBJECT_TYPE_CUBE = 1;
-  static OBJECT_TYPE_CONE = 2;
-  static OBJECT_TYPE_TORUS = 3;
-  static OBJECT_TYPE_CYLINDER = 4;
-  static OBJECT_TYPE_PLANE = 5;
+  static OBJECT_TYPE_SPHERE = 1;
+  static OBJECT_TYPE_CUBE = 2;
+  static OBJECT_TYPE_CONE = 3;
+  static OBJECT_TYPE_TORUS = 4;
+  static OBJECT_TYPE_CYLINDER = 5;
+  static OBJECT_TYPE_PLANE = 6;
+  static OBJECT_TYPE_INVERTED_SPHERE = -1;
+  static OBJECT_TYPE_INVERTED_CUBE = -2;
+  static OBJECT_TYPE_INVERTED_CONE = -3;
+  static OBJECT_TYPE_INVERTED_TORUS = -4;
+  static OBJECT_TYPE_INVERTED_CYLINDER = -5;
+  static OBJECT_TYPE_INVERTED_PLANE = -6;
 
   static OBJECT_BYTE_SIZE = 64; // 16 + 16 + 16 + 16
   // 64 + 48 ( mat3 padded to vec4 for some reason...)
@@ -184,22 +190,28 @@ export default class RayObject extends SceneObject {
     let radius;
     switch (this.type) {
       case RayObject.OBJECT_TYPE_SPHERE:
+      case RayObject.OBJECT_TYPE_INVERTED_SPHERE:
         radius = this.radius;
         break;
       case RayObject.OBJECT_TYPE_CUBE:
+      case RayObject.OBJECT_TYPE_INVERTED_CUBE:
         // (sqrt 2)
         radius = this.halfSize * 1.414213 * 1.5;
         break;
       case RayObject.OBJECT_TYPE_CONE:
+      case RayObject.OBJECT_TYPE_INVERTED_CONE:
         radius = Math.max(this.radius, this.height);
         break;
       case RayObject.OBJECT_TYPE_TORUS:
+      case RayObject.OBJECT_TYPE_INVERTED_TORUS:
         radius = this.radius + this.radiusMinor;
         break;
       case RayObject.OBJECT_TYPE_CYLINDER:
+      case RayObject.OBJECT_TYPE_INVERTED_CYLINDER:
         radius = Math.max(this.radius, this.height);
         break;
       case RayObject.OBJECT_TYPE_PLANE:
+      case RayObject.OBJECT_TYPE_INVERTED_PLANE:
         if (this.width < 0 || this.depth < 0) {
           radius = 100;
         } else {
@@ -264,15 +276,21 @@ export default class RayObject extends SceneObject {
     let size = 0;
     switch (this.type) {
       case RayObject.OBJECT_TYPE_SPHERE:
+      case RayObject.OBJECT_TYPE_INVERTED_SPHERE:
       case RayObject.OBJECT_TYPE_CONE:
+      case RayObject.OBJECT_TYPE_INVERTED_CONE:
       case RayObject.OBJECT_TYPE_CYLINDER:
+      case RayObject.OBJECT_TYPE_INVERTED_CYLINDER:
       case RayObject.OBJECT_TYPE_TORUS:
+      case RayObject.OBJECT_TYPE_INVERTED_TORUS:
         size = this.radius;
         break;
       case RayObject.OBJECT_TYPE_CUBE:
+      case RayObject.OBJECT_TYPE_INVERTED_CUBE:
         size = this.halfSize;
         break;
       case RayObject.OBJECT_TYPE_PLANE:
+      case RayObject.OBJECT_TYPE_INVERTED_PLANE:
         size = this.width;
         break;
       default:

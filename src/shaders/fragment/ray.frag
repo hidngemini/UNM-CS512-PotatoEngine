@@ -342,12 +342,12 @@ struct Plane {
 };
 
 // type flags used in the general object struct below
-const int OBJECT_TYPE_SPHERE = 0;
-const int OBJECT_TYPE_CUBE = 1;
-const int OBJECT_TYPE_CONE = 2;
-const int OBJECT_TYPE_TORUS = 3;
-const int OBJECT_TYPE_CYLINDER = 4;
-const int OBJECT_TYPE_PLANE = 5;
+const int OBJECT_TYPE_SPHERE = 1;
+const int OBJECT_TYPE_CUBE = 2;
+const int OBJECT_TYPE_CONE = 3;
+const int OBJECT_TYPE_TORUS = 4;
+const int OBJECT_TYPE_CYLINDER = 5;
+const int OBJECT_TYPE_PLANE = 6;
 
 const int OBJECT_TRANSFORM_TRANSLATE_ONLY = 1;
 
@@ -672,7 +672,7 @@ bool intersectTorus(
 
   float tMin = max(0.001f, (-b - sqrt(disc)) / a);
   float tMax = (-b + sqrt(disc)) / a;
-  if(tMax < tMin){
+  if(tMax < tMin) {
     return false;
   }
 
@@ -699,7 +699,7 @@ bool intersectTorus(
 
     // step forward
     tCurrent += max(abs(distance) / rayLength, EPSILON_NORM);
-    if(tCurrent > tMax){
+    if(tCurrent > tMax) {
       break;
     }
   }
@@ -778,7 +778,10 @@ bool intersectObject(
   vec3 localNormal;
   bool didHit = false;
 
-  if(obj.meta.x == OBJECT_TYPE_SPHERE) {
+  int type = abs(obj.meta.x);
+  float invert = float(obj.meta.x / type);
+
+  if(type == OBJECT_TYPE_SPHERE) {
     Sphere s = Sphere(center, obj.centerRadius.w);
     // s.radius = 5.0;
     didHit = intersectSphere(s, localRay, localT);
@@ -787,7 +790,7 @@ bool intersectObject(
       localNormal = normalize((p - s.center) / s.radius);
       uv = calculateSphereUV(p, s);
     }
-  } else if(obj.meta.x == OBJECT_TYPE_CUBE) {
+  } else if(type == OBJECT_TYPE_CUBE) {
     Cube c = Cube(center, obj.centerRadius.w);
 
     didHit = intersectCube(c, localRay, localT, localNormal);
@@ -795,7 +798,7 @@ bool intersectObject(
       vec3 p = localRay.origin + localRay.direction * localT;
       uv = calculateCubeUV(p, localNormal, c);
     }
-  } else if(obj.meta.x == OBJECT_TYPE_PLANE) {
+  } else if(type == OBJECT_TYPE_PLANE) {
     Plane p = Plane(center, obj.centerRadius.w, obj.options.x);
 
     didHit = intersectPlane(p, localRay, localT, localNormal);
@@ -803,7 +806,7 @@ bool intersectObject(
       vec3 point = localRay.origin + localRay.direction * localT;
       uv = calculatePlaneUV(point, p);
     }
-  } else if(obj.meta.x == OBJECT_TYPE_CONE) {
+  } else if(type == OBJECT_TYPE_CONE) {
     Cone c = Cone(center, obj.centerRadius.w, obj.options.x);
 
     didHit = intersectCone(c, localRay, localT, localNormal);
@@ -811,14 +814,14 @@ bool intersectObject(
       vec3 point = localRay.origin + localRay.direction * localT;
       uv = calculateConeUV(point, localNormal, c);
     }
-  } else if(obj.meta.x == OBJECT_TYPE_TORUS) {
+  } else if(type == OBJECT_TYPE_TORUS) {
     Torus t = Torus(center, obj.centerRadius.w, obj.options.x);
 
     didHit = intersectTorus(t, localRay, localT, localNormal);
     if(didHit) {
       uv = vec2(0);
     }
-  } else if(obj.meta.x == OBJECT_TYPE_CYLINDER) {
+  } else if(type == OBJECT_TYPE_CYLINDER) {
     // TODO
   }
 
@@ -826,7 +829,7 @@ bool intersectObject(
     return false;
 
   t = localT;
-  worldNormal = localToWorldNormal(localNormal, otc, light);
+  worldNormal = localToWorldNormal(invert * localNormal, otc, light);
 
   return true;
 }
