@@ -71,23 +71,22 @@ function updateUniforms(gl, shaderProgram, scene) {
 
   shaderProgram.uniforms.u_fov = -scene.camera.fov;
 
-  packObjects(gl, [...this.objects], shaderProgram);
-  packLights(gl, [...this.lights], shaderProgram);
-  packMaterials(gl, [...this.materials], shaderProgram);
-
-  // NOTE: only one texture map supported in ray tracing for now
   const seenTextures = new Set();
+  packMaterials(gl, [...this.materials], shaderProgram);
   for (const mat of this.materials) {
     const tl = mat.textureMapLabel;
+
     if (tl && !seenTextures.has(tl)) {
       seenTextures.add(tl);
       const tex = scene.getTexture(tl);
-      tex.bind(0, scene.gl);
+      tex.bind(seenTextures.size, scene.gl);
       shaderProgram.uniforms.u_textureLayerCount = tex.layerCount;
-
-      break;
     }
   }
+
+  packObjects(gl, [...this.objects], shaderProgram, this.materialMap);
+  packLights(gl, [...this.lights], shaderProgram, this.materialMap);
+
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
@@ -114,6 +113,7 @@ function packObjects(
   gl,
   objects,
   shaderProgram,
+  materials,
   {
     itemSize = RayObject.OBJECT_BYTE_SIZE,
     transformItemSize = RayObject.OBJECT_TRANSFORM_BYTE_SIZE,
@@ -130,8 +130,11 @@ function packObjects(
   const viewT = new DataView(bytesT);
 
   for (let i = 0; i < objects.length; i++) {
-    objects[i].packData(view, i * itemSize);
-    objects[i].packTransformData(viewT, i * transformItemSize);
+    const target = objects[i];
+    target.materialIndex =
+      materials.get(target.materialLabel) ?? target.materialIndex;
+    target.packData(view, i * itemSize);
+    target.packTransformData(viewT, i * transformItemSize);
   }
 
   // throw the data into the buffers
@@ -157,6 +160,7 @@ function packMaterials(gl, materials, shaderProgram) {
 
   for (let i = 0; i < materials.length; i++) {
     const offset = i * RayMaterial.MATERIAL_BYTE_SIZE;
+    materials[i].materialIndex = i;
     materials[i].packData(view, offset);
   }
 
@@ -177,9 +181,13 @@ function packMaterials(gl, materials, shaderProgram) {
  * how you'd get that from an object...
  *
  * Identical to the object packing function so we just call it as a helper
+ * @param {*} gl
+ * @param {*} lights
+ * @param {*} shaderProgram
+ * @param {*} materials
  */
-function packLights(gl, lights, shaderProgram) {
-  packObjects(gl, lights, shaderProgram, {
+function packLights(gl, lights, shaderProgram, materials) {
+  packObjects(gl, lights, shaderProgram, materials, {
     targetBuffer: shaderProgram.lightBuffer,
     targetTransformBuffer: shaderProgram.lightTransformBuffer,
     maxItems: shaderProgram.maxLights,
