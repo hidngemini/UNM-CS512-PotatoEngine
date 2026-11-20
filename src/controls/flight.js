@@ -224,12 +224,12 @@ export default {
  */
 function createDPad(scene, press, release) {
   const directions = [
-    { key: "w", label: "Forward", row: 1, col: 2, symbol: "⯅" },
-    { key: "a", label: "Left", row: 2, col: 1, symbol: "⯇" },
-    { key: "s", label: "Backward", row: 2, col: 2, symbol: "⯆" },
-    { key: "d", label: "Right", row: 2, col: 3, symbol: "⯈" },
+    { key: "w", label: "Forward", row: 1, col: 2, symbol: "^" },
+    { key: "a", label: "Left", row: 2, col: 1, symbol: "<" },
+    { key: "s", label: "Backward", row: 2, col: 2, symbol: "v" },
+    { key: "d", label: "Right", row: 2, col: 3, symbol: ">" },
     { key: "shift", label: "Down", row: 1, col: 1, symbol: "⭘" },
-    { key: " ", label: "Up", row: 1, col: 3, symbol: "⭙" },
+    { key: " ", label: "Up", row: 1, col: 3, symbol: "x" },
   ];
 
   let dpadElement = document.createElement("div");

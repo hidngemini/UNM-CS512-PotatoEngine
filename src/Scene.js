@@ -787,16 +787,22 @@ export default class Scene {
 
     // override if the shader program sets its own matrices
     let matOverride = pass.matrices ? pass.matrices : matrices;
-    if (pass.objIndependent && pass.programLabel) {
-      const shaderProgram = this.getProgram(pass.programLabel);
-      shaderProgram.use(this.gl);
+    if (pass.objIndependent) {
 
-      this._updateShaderGeneralLocs(
-        shaderProgram,
-        matOverride.projectionTransform,
-        matOverride.viewTransform,
-        matOverride.sceneTransform,
-      );
+      // allow no general shader program, this is used in the procedural 
+      // pass that chooses programs based on the material.programLabels 
+      let shaderProgram;
+      if (pass.programLabel !== undefined) {
+        shaderProgram = this.getProgram(pass.programLabel);
+        shaderProgram.use(this.gl);
+
+        this._updateShaderGeneralLocs(
+          shaderProgram,
+          matOverride.projectionTransform,
+          matOverride.viewTransform,
+          matOverride.sceneTransform,
+        );
+      }
 
       this._clearActiveMaterial();
 

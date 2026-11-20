@@ -79,14 +79,16 @@ function updateUniforms(gl, shaderProgram, scene) {
     if (tl && !seenTextures.has(tl)) {
       seenTextures.add(tl);
       const tex = scene.getTexture(tl);
-      tex.bind(seenTextures.size, scene.gl);
-      shaderProgram.uniforms.u_textureLayerCount = tex.layerCount;
+      tex.bind(seenTextures.size-1, scene.gl);
+      gl.uniform1ui(
+        shaderProgram.locs[`u_textureLayerCount${seenTextures.size - 1}`],
+        tex.layerCount,
+      );
     }
   }
 
   packObjects(gl, [...this.objects], shaderProgram, this.materialMap);
   packLights(gl, [...this.lights], shaderProgram, this.materialMap);
-
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }

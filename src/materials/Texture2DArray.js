@@ -111,7 +111,7 @@ export default class Texture2DArray {
     gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
 
     if (mipmaps) {
-      gl.generateMipmap(gl.TEXTURE_2D_ARRAY);
+      this.generateMipmaps();
     }
   }
 
@@ -121,7 +121,7 @@ export default class Texture2DArray {
    * @param {number} layer
    */
   load(url, layer = ++this.layerCount) {
-    this.layerCount = Math.max(layer, this.layerCount);
+    this.layerCount = Math.max(layer + 1, this.layerCount);
 
     this._checkLayer(layer);
 
@@ -156,7 +156,7 @@ export default class Texture2DArray {
    * @param {WebGL2RenderingContext} [gl=this._gl]
    */
   upload(source, layer, gl = this._gl) {
-    this._checkLayer(layer);
+    this.registerLayer(layer);
 
     const size = this._sourceSize(source);
     if (size.width !== this.width || size.height !== this.height) {
@@ -223,6 +223,17 @@ export default class Texture2DArray {
   }
 
   /**
+   * label a layer as being used & updae layercount
+   *
+   * @param {number} layer
+   */
+  registerLayer(layer) {
+    this._checkLayer(layer);
+    this.layerCount = Math.max(this.layerCount, layer + 1);
+    return layer;
+  }
+
+  /**
    * bind this texture to a texture unit
    * @param {*} unit the unit
    * @param {WebGL2RenderingContext} [gl=this._gl]
@@ -250,5 +261,50 @@ export default class Texture2DArray {
       this.texture = null;
       this._sources.clear();
     }
+  }
+
+  /**
+   * attach texture layer to a framebuffer, this lets us render to
+   * it directlty (which is useful in the procedural material pass)
+   *
+   * TODO add a safety check to validate attachment status?
+   *      should be ok without it tbh
+   *
+   * @param {WebGLFramebuffer} framebuffer
+   * @param {number} layer
+   * @param {WebGL2RenderingContext} [gl=this._gl]
+   */
+  attachLayer(framebuffer, layer, gl = this._gl) {
+    this.registerLayer(layer);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    gl.framebufferTextureLayer(
+      gl.FRAMEBUFFER,
+      gl.COLOR_ATTACHMENT0,
+      this.texture,
+      0,
+      layer,
+    );
+    // console.log("attaching layer");
+    this._sources.set(layer, { src: "Procedural Material", framebuffer });
+
+    gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+  }
+
+  /**
+   * generate the mipmaps for the entire texture array
+   *
+   * @param {WebGL2RenderingContext} [gl=this._gl]
+   */
+  generateMipmaps(gl = this._gl) {
+    if (!this.mipmaps) {
+      return;
+    }
+
+    const previous = gl.getParameter(gl.TEXTURE_BINDING_2D_ARRAY);
+
+    gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.texture);
+    gl.generateMipmap(gl.TEXTURE_2D_ARRAY);
+    gl.bindTexture(gl.TEXTURE_2D_ARRAY, previous);
   }
 }

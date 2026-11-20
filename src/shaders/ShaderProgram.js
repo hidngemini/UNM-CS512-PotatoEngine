@@ -74,6 +74,10 @@ export default class ShaderProgram {
     // materials work this way, bvh objects etc
 
     this.timeLoc = gl.getUniformLocation(this.program, "uTime");
+    // i changed my naming conventions part way so we account for both lol
+    if (!this.timeLoc) {
+      this.timeLoc = gl.getUniformLocation(this.program, "u_time");
+    }
     this.uMVM = gl.getUniformLocation(this.program, "uModelViewMatrix");
     this.uPM = gl.getUniformLocation(this.program, "uProjectionMatrix");
     this.uMTM = gl.getUniformLocation(

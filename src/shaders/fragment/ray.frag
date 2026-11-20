@@ -50,7 +50,9 @@ uniform int u_materialCount;
 
 // texture uniforms
 uniform sampler2DArray u_textures;
-uniform int u_textureLayerCount; // count of how many textures
+uniform uint u_textureLayerCount0; // count of how many textures
+uniform sampler2DArray u_texturesBaked;
+uniform uint u_textureLayerCount1; // count of how many textures
 
 // 2D sampler usage once I implement it in here
 // uniform sampler2DArray u_textures;
@@ -231,13 +233,18 @@ vec4 proceduralTexture(uint index, vec2 uv) {
     return blackWhiteTiles(uv);
   }
 
+  // "convention" for now will be indexes above 127 are baked textures from the baked render pass
+  if(index >= 127u && index < 256u) {
+    return texture(u_texturesBaked, vec3(uv, float(index - 127u)));
+  }
+
   return missingTexture(uv);
 }
 
 // sampler helper for when we start using the texture2d array
-vec4 sampleTexture(int layer, vec2 uv) {
+vec4 sampleTexture(uint layer, vec2 uv) {
   // default to the missing texture 
-  if(layer < 0 || layer > u_textureLayerCount) {
+  if(layer < 0u || layer > u_textureLayerCount0) {
     return missingTexture(uv);
   }
 
@@ -311,7 +318,7 @@ Material calculateMaterial(int matId, vec2 uv) {
   vec4 textureColor;
 
   if(source == SOURCE_TEXTURE) {
-    textureColor = sampleTexture(int(index), uv);
+    textureColor = sampleTexture(index, uv);
   } else {
     textureColor = proceduralTexture(index, uv);
   }

@@ -8,14 +8,18 @@ import {
 import flight from "../../src/controls/flight";
 import { RayObject } from "../../src/objects";
 import {
+  ProceduralMaterial,
   RayMaterial,
   RayTextureDescriptor,
   TD,
   Texture2DArray,
 } from "../../src/materials";
 import { makeEditorTabs, syncProperties } from "../../src/controls/sceneEditor";
+import { ProceduralMaterialRenderPass } from "../../src/renderers";
+import ProceduralMaterialProgram from "../../src/shaders/ProceduralMaterialProgram";
 
 const SHADER_PROGRAM_RAY = "ray";
+const SHADER_PROGRAM_PROCEDURAL = "SHADER_PROGRAM_PROCEDURAL";
 
 const scene = new Scene("glcanvas");
 // scene.camera.move(0, 0, -25);
@@ -29,6 +33,13 @@ const rayProgram = scene.createProgram(
   RayShaderProgram,
 );
 
+const proceduralProgram = scene.createProgram(
+  SHADER_PROGRAM_PROCEDURAL,
+  "../../src/shaders/vertex/procedural.vert",
+  "../../src/shaders/fragment/proceduralTile.frag",
+  ProceduralMaterialProgram,
+);
+
 /**
  * Add textures to the scene
  */
@@ -39,13 +50,26 @@ function addTextures() {
   textureSet.load("./brick.png", 0);
   textureSet.load("./brick.png", 1);
   scene.addTexture("textureSet", textureSet, { load: false });
+
+  // adds its own texture array, we have to add after the above
+  ProceduralMaterialRenderPass.add(scene, {
+    materials: [
+      new ProceduralMaterial("tileTest", SHADER_PROGRAM_PROCEDURAL, {
+        params: [8],
+        // animated: true,
+      }),
+      new ProceduralMaterial("tileTest2", SHADER_PROGRAM_PROCEDURAL),
+    ],
+  });
 }
 
 const MAT_BLUE_GLASS = "blueGlass";
 const MAT_GREEN_DIFFUSE = "greenDiffuse";
 const MAT_GLASS_TILE = "glassTile";
 const MAT_IMAGE = "imagemat";
+const MAT_PROCEDURAL_BAKED = "MAT_PROCEDURAL_BAKED";
 let glass;
+
 /**
  * Add materials to the scene
  */
@@ -65,7 +89,7 @@ function addMaterials() {
 
   // test see if we can call a texture function
   // defined in the shader
-  let glassTile = new RayMaterial(MAT_GLASS_TILE, {
+  const glassTile = new RayMaterial(MAT_GLASS_TILE, {
     ka: [1, 0, 1],
     kd: [1, 0, 1],
     ks: [1, 0, 1],
@@ -80,7 +104,7 @@ function addMaterials() {
     ],
   });
 
-  let imageMaterial = new RayMaterial(MAT_IMAGE, {
+  const imageMaterial = new RayMaterial(MAT_IMAGE, {
     ka: [0.5, 0.5, 0.5],
     kd: [0.5, 0.5, 0.5],
     ks: [0.5, 0.5, 0.5],
@@ -95,10 +119,26 @@ function addMaterials() {
     ],
   });
 
+  const proceduralMaterial = new RayMaterial(MAT_PROCEDURAL_BAKED, {
+    ka: [0.5, 0.5, 0.5],
+    kd: [0.5, 0.5, 0.5],
+    ks: [0.5, 0.5, 0.5],
+    textureMapLabel: ProceduralMaterialRenderPass.TEXTURE_2DARRAY_PROCEDURAL,
+    textureInformation: [
+      new RayTextureDescriptor(
+        TD.SOURCE_PROCEDURAL,
+        TD.BLEND_NORMAL,
+        TD.TEXTURE_ALBEDO,
+        0,
+      ),
+    ],
+  });
+
   scene.addMaterial(glass, SHADER_PROGRAM_RAY);
   scene.addMaterial(diffuse, SHADER_PROGRAM_RAY);
   scene.addMaterial(glassTile, SHADER_PROGRAM_RAY);
   scene.addMaterial(imageMaterial, SHADER_PROGRAM_RAY);
+  scene.addMaterial(proceduralMaterial, SHADER_PROGRAM_RAY);
 }
 
 let sphere;
@@ -190,6 +230,7 @@ flight.setupMouseControls(scene, {
 const cameraCB = flight.setupKeyboardControls(scene);
 
 function updateScene(dt) {
+  requestAnimationFrame(scene.render);
   cameraCB(dt);
 
   sphere.position[0] = 5 * Math.sin(scene.time / 500);
@@ -247,6 +288,7 @@ async function main() {
   addRayTracingRenderPass(scene, SHADER_PROGRAM_RAY);
   addMaterials();
   addTextures();
+
   await scene.load();
 
   initSceneObjects();
@@ -254,10 +296,12 @@ async function main() {
 
   makeEditorTabs(scene);
 
-  setInterval(() => {
-    syncProperties();
-    scene.render();
-  }, 30);
+  // setInterval(() => {
+  //   syncProperties();
+  //   scene.render();
+  // }, 30);
+
+  requestAnimationFrame(scene.render);
 }
 
 main();

@@ -6,5 +6,6 @@ export { default as TextureColorRamp } from "./TextureColorRamp";
 export { default as TexturedMaterial } from "./TexturedMaterial";
 export { default as RayMaterial } from "./RayMaterial";
 export { default as RayTextureDescriptor } from "./RayTextureDescriptor";
+export { default as ProceduralMaterial } from "./ProceduralMaterial";
 export * as TD from "./RayTextureDescriptor";
 export * as common from "./common";

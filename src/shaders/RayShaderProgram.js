@@ -56,7 +56,10 @@ export default class RayShaderProgram extends ShaderProgram {
         options: [
           [RayShaderProgram.SHADOW_MODE_FAST, "SHADOW_MODE_FAST"],
           [RayShaderProgram.SHADOW_MODE_FAST_GLASS, "SHADOW_MODE_FAST_GLASS"],
-          [RayShaderProgram.SHADOW_MODE_SIMPLE_GLASS, "SHADOW_MODE_SIMPLE_GLASS"],
+          [
+            RayShaderProgram.SHADOW_MODE_SIMPLE_GLASS,
+            "SHADOW_MODE_SIMPLE_GLASS",
+          ],
           [RayShaderProgram.SHADOW_MODE_TIR_GLASS, "SHADOW_MODE_TIR_GLASS"],
         ],
         cast: Number,
@@ -138,8 +141,11 @@ export default class RayShaderProgram extends ShaderProgram {
       "u_raySamples",
       "u_maxShadowLayers",
       "u_shadowMixRatio",
-      "u_textureLayerCount",
       "u_fov",
+      "u_textureLayerCount0",
+      "u_textureLayerCount1",
+      "u_textures",
+      "u_texturesBaked",
     ];
 
     for (const loc of defaultLocs) {
@@ -161,7 +167,9 @@ export default class RayShaderProgram extends ShaderProgram {
     this.uniforms.u_ambientStrength = 0.2;
     this.uniforms.u_raySamples = 1;
     this.uniforms.u_maxShadowLayers = 4;
-
+    this.uniforms.u_textures = 0;
+    this.uniforms.u_texturesBaked = 1;
+    
     const maxBlockBytes = gl.getParameter(gl.MAX_UNIFORM_BLOCK_SIZE);
     this.maxObjects = Math.min(
       Math.floor(maxBlockBytes / RayObject.OBJECT_BYTE_SIZE),

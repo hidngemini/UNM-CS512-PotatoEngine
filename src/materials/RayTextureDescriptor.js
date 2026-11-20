@@ -1,8 +1,12 @@
+import { ProceduralMaterialRenderPass } from "../renderers";
+
 export const SOURCE_TEXTURE = 0;
 export const SOURCE_FUNCTION = 1;
+export const SOURCE_PROCEDURAL = 2;
 const SOURCE_TYPES = {
   0: "TEXTURE",
   1: "FUNCTION",
+  2: "PROCEDURAL",
 };
 
 export const BLEND_IGNORE = 0;
@@ -75,11 +79,18 @@ export default class RayTextureDescriptor {
    * </pre>
    */
   pack() {
+    let sourceType = this.sourceType;
+    let textureIndex = this.textureIndex;
+    if( this.sourceType == SOURCE_PROCEDURAL){
+      sourceType = SOURCE_FUNCTION;
+      textureIndex += ProceduralMaterialRenderPass.MAX_PROCEDURAL_TEXTURES
+    }
+    
     return (
-      (this.sourceType & 1) |
+      (sourceType & 1) |
       ((this.blendMode & 7) << 1) |
       ((this.textureType & 15) << 4) |
-      ((this.textureIndex & 255) << 8)
+      ((textureIndex & 255) << 8)
     );
   }
 }
