@@ -639,6 +639,74 @@ bool intersectCone(
   return hit;
 }
 
+// dist to torus sphere traced
+float sdTorus(vec3 p, float R, float r) {
+  vec2 q = vec2(length(p.xz) - R, p.y);
+  return length(q) - r;
+}
+
+// intersection with torus, sphere tracing
+// think theres faster ways for this, but sphere tracing is
+// the simplest method I can find. Multiple types are covered in the
+// following pa[er https://arxiv.org/pdf/2301.03191
+// although at an annoyingly high level of math
+bool intersectTorus(
+  Torus torus,
+  Ray ray,
+  out float t,
+  out vec3 normal
+) {
+  vec3 oc = ray.origin - torus.center;
+  float a = dot(ray.direction, ray.direction);
+  float b = dot(oc, ray.direction);
+  float c = dot(oc, oc) - (torus.R + torus.r) *
+    (torus.R + torus.r);
+  float disc = b * b - a * c;
+
+  // make sure we only check the sphere around the 
+  // torus, since this one is expensive we could skip
+  // this in the previous check or skip it here but id rather 
+  // note it in both places.
+  if(disc < 0.0f)
+    return false;
+
+  float tMin = max(0.001f, (-b - sqrt(disc)) / a);
+  float tMax = (-b + sqrt(disc)) / a;
+  if(tMax < tMin){
+    return false;
+  }
+
+  float rayLength = sqrt(a);
+  float tCurrent = tMin;
+
+  // step ray forwards & check dist
+  for(int i = 0; i < 96; ++i) {
+    vec3 p = ray.origin + tCurrent * ray.direction - torus.center;
+    float distance = sdTorus(p, torus.R, torus.r);
+
+    // close enough to the surface
+    if(abs(distance) < EPSILON_NORM) {
+      t = tCurrent;
+
+      // calculate normal from gradient
+      float radial = length(p.xz);
+      vec2 q = vec2(radial - torus.R, p.y);
+      vec2 g = normalize(q);
+      vec2 radialDir = radial > EPSILON ? p.xz / radial : vec2(1.0f, 0.0f);
+      normal = normalize(vec3(g.x * radialDir.x, g.y, g.x * radialDir.y));
+      return true;
+    }
+
+    // step forward
+    tCurrent += max(abs(distance) / rayLength, EPSILON_NORM);
+    if(tCurrent > tMax){
+      break;
+    }
+  }
+
+  return false;
+}
+
 // transform ray into local space by looking up cached transform
 // note this means we dont need to caclculate inverse all the time
 Ray toObjectSpace(Ray r, int otc, bool light) {
@@ -744,7 +812,12 @@ bool intersectObject(
       uv = calculateConeUV(point, localNormal, c);
     }
   } else if(obj.meta.x == OBJECT_TYPE_TORUS) {
-    // TODO
+    Torus t = Torus(center, obj.centerRadius.w, obj.options.x);
+
+    didHit = intersectTorus(t, localRay, localT, localNormal);
+    if(didHit) {
+      uv = vec2(0);
+    }
   } else if(obj.meta.x == OBJECT_TYPE_CYLINDER) {
     // TODO
   }
