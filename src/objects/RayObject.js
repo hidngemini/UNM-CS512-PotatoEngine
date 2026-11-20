@@ -7,6 +7,7 @@ import {
   TYPE_DROPDOWN_SELECTOR,
   TYPE_MATERIAL_SELECTOR,
   TYPE_PROGRAM_SELECTOR,
+  TYPE_XTUPLE_SELECTOR,
 } from "../controls/sceneEditor";
 import {
   mat3Transpose,
@@ -37,7 +38,7 @@ export default class RayObject extends SceneObject {
   static OBJECT_TYPE_INVERTED_CYLINDER = -5;
   static OBJECT_TYPE_INVERTED_PLANE = -6;
 
-  static OBJECT_BYTE_SIZE = 64; // 16 + 16 + 16 + 16
+  static OBJECT_BYTE_SIZE = 80; // 16 + 16 + 16 + 16+ 16
   // 64 + 48 ( mat3 padded to vec4 for some reason...)
   // can bump max objects a bit if we optimize this.
   static OBJECT_TRANSFORM_BYTE_SIZE = 112;
@@ -71,10 +72,12 @@ export default class RayObject extends SceneObject {
     },
     { name: "programLabel", type: TYPE_PROGRAM_SELECTOR },
     { name: "materialLabel", type: TYPE_MATERIAL_SELECTOR },
+    { name: "uvBounds", type: TYPE_XTUPLE_SELECTOR },
+    "uvScale",
     { name: "lightingCenter", type: TYPE_3TUPLE_SELECTOR },
     "lightingRadius",
     "materialIndex",
-    "shouldDraw", 
+    "shouldDraw",
     "light",
     "lightPower",
     "radius",
@@ -123,6 +126,8 @@ export default class RayObject extends SceneObject {
    * @param {string} options.lightingCenter         the center of the object to calculate light culling with
    * @param {string} options.lightingRadius         the radius of the object to use when calculate light culling
    * @param {number} [options.materialIndex=-1]
+   * @param {number} [options.uvBounds=[0,0,1,1]]
+   * @param {number} [options.uvScale=1]
    * @param {number} [options.radius=undefined]     the radius used for sphere, cylinder, torus(R), and cone
    * @param {number} [options.halfSize=undefined]   the size used for cubes
    * @param {number} [options.height=undefined]     the height used for cylinders, cones
@@ -156,6 +161,8 @@ export default class RayObject extends SceneObject {
       light = false,
       lightPower = 0.5,
       materialIndex = -1,
+      uvBounds = [0, 0, 1, 1],
+      uvScale = 1,
 
       // ray object geometry
       radius = undefined,
@@ -197,6 +204,8 @@ export default class RayObject extends SceneObject {
     this.radiusMinor = radiusMinor;
     this.bulge = bulge;
     this.faces = faces;
+    this.uvBounds = uvBounds;
+    this.uvScale = uvScale;
 
     this.type = type;
   }
@@ -342,6 +351,8 @@ export default class RayObject extends SceneObject {
 
     if (this.light) {
       options.w = this.lightPower;
+    } else {
+      options.w = this.uvScale;
     }
 
     view.setFloat32(32 + offset, options.x, true);
@@ -355,6 +366,10 @@ export default class RayObject extends SceneObject {
     view.setFloat32(52 + offset, worldCenter[1], true);
     view.setFloat32(56 + offset, worldCenter[2], true);
     view.setFloat32(60 + offset, this.getRadius(), true);
+
+    for (let i = 0; i < 4; i++) {
+      view.setFloat32(64 + i * 4 + offset, this.uvBounds[i], true);
+    }
   }
 
   /**

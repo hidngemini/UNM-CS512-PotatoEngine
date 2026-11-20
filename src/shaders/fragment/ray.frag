@@ -359,8 +359,9 @@ const int OBJECT_TRANSFORM_TRANSLATE_ONLY = 1;
 struct Object {
   ivec4 meta;         // x    => type;    y => material?; z=> cyl: faceted (& count of faces) ; w => translate transform only?; 
   vec4 centerRadius;  // xyz  => center;  w => cone, sphere, cyl: r, cube: half-size, torus: R, plane: width
-  vec4 options;       // x    => cyl, cone: height, torus:r, plane:depth;     y=> cyl: bulge,   w => light: power;
+  vec4 options;       // x    => cyl, cone: height, torus:r, plane:depth;     y=> cyl: bulge,   w => light: power, normal objects: uv scale;
   vec4 testCenterRadius; // center of the object transformed into world space so we can check rays against it rather than needing to always transform into object space 
+  vec4 uvBounds;       // xy   => top left; zw => bottom right;
 };
 
 // we want to avoid calculatingg the inverse for every single ray
@@ -825,12 +826,12 @@ bool intersectObject(
     // TODO
   }
 
-  if(!didHit)
+  if(!didHit) {
     return false;
+  }
 
   t = localT;
   worldNormal = localToWorldNormal(invert * localNormal, otc, light);
-
   return true;
 }
 
@@ -909,6 +910,7 @@ float schlick(float cosine, float n1, float n2) {
 HitData traceScene(Ray ray, bool includeLight) {
   HitData hit;
   hit.hit = false;
+  Object target;
   hit.t = 1e10f;
   float t;
   vec3 n;
@@ -921,6 +923,7 @@ HitData traceScene(Ray ray, bool includeLight) {
       candidate.lightPower = lights[i].options.w;
       if(candidate.hit && candidate.t < hit.t) {
         hit = candidate;
+        target = lights[i];
       }
     }
   }
@@ -931,7 +934,13 @@ HitData traceScene(Ray ray, bool includeLight) {
     HitData candidate = calculateHit(objects[i], ray, i, false);
     if(candidate.hit && candidate.t < hit.t) {
       hit = candidate;
+      target = objects[i];
     }
+  }
+
+  if(hit.lightPower <= 0.f) {
+    // hit.uv = hit.uv / (target.uvBounds.zw - target.uvBounds.xy) + target.uvBounds.xy;
+    hit.uv *= target.options.w;
   }
 
   return hit;
