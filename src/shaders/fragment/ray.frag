@@ -75,6 +75,38 @@ const int SHADOW_MODE_FAST_GLASS = 1;
 const int SHADOW_MODE_SIMPLE_GLASS = 2;
 const int SHADOW_MODE_TIR_GLASS = 3;
 
+////////////////
+// RANDOMNESS //
+////////////////
+
+// basic bad random, consts from book of shaders https://thebookofshaders.com/10/
+float randomValue(vec2 seed) {
+  return fract(sin(dot(seed, vec2(12.9898f, 78.233f))) * 43758.5453123f);
+}
+
+// slightly better random, easier to reason about bounce & sample num influence
+float randomValue2(vec2 pixel, int sampleNum, int bounce) {
+  vec4 seed = vec4(pixel.x, pixel.y, float(sampleNum), float(bounce));
+  return fract(sin(dot(seed, vec4(12.9898f, 78.233f, 37.934f, 17.193f))) * 43758.5453123f);
+}
+
+// TODO hash random? might look a little better and less spatially correlated...
+
+// based on the sample count select from a different strata within the same pixel
+vec2 stratifiedSampleVec2(int sampleNum, int sampleCount) {
+  float n = float(sampleCount);
+
+  float x = (float(sampleNum) +
+    randomValue2(gl_FragCoord.xy, sampleNum, sampleCount * 10)) / n;
+
+  float yIndex = mod(float(sampleNum) * 0.61803398875f, 1.0f) * n;
+
+  float y = (yIndex +
+    randomValue2(gl_FragCoord.yx, sampleNum, (sampleCount + 1) * 10)) / n;
+
+  return vec2(x, y);
+}
+
 /////////////////////////
 // MATERIAL SETUP PT 1 //
 /////////////////////////
@@ -865,38 +897,6 @@ HitData calculateHit(Object obj, Ray ray, int otc, bool light) {
   return result;
 }
 
-////////////////
-// RANDOMNESS //
-////////////////
-
-// basic bad random, consts from book of shaders https://thebookofshaders.com/10/
-float randomValue(vec2 seed) {
-  return fract(sin(dot(seed, vec2(12.9898f, 78.233f))) * 43758.5453123f);
-}
-
-// slightly better random, easier to reason about bounce & sample num influence
-float randomValue2(vec2 pixel, int sampleNum, int bounce) {
-  vec4 seed = vec4(pixel.x, pixel.y, float(sampleNum), float(bounce));
-  return fract(sin(dot(seed, vec4(12.9898f, 78.233f, 37.934f, 17.193f))) * 43758.5453123f);
-}
-
-// TODO hash random? might look a little better and less spatially correlated...
-
-// based on the sample count select from a different strata within the same pixel
-vec2 stratifiedSampleVec2(int sampleNum, int sampleCount) {
-  float n = float(sampleCount);
-
-  float x = (float(sampleNum) +
-    randomValue2(gl_FragCoord.xy, sampleNum, sampleCount * 10)) / n;
-
-  float yIndex = mod(float(sampleNum) * 0.61803398875f, 1.0f) * n;
-
-  float y = (yIndex +
-    randomValue2(gl_FragCoord.yx, sampleNum, (sampleCount + 1) * 10)) / n;
-
-  return vec2(x, y);
-}
-
 //////////////////////
 // CALCULATION TIME //
 //////////////////////
@@ -908,8 +908,8 @@ float schlick(float cosine, float n1, float n2) {
 }
 
 HitData traceScene(Ray ray, bool includeLight) {
-  HitData hit;
-  hit.hit = false;
+  HitData hit = HitData(false, 1e10f, vec3(0.0f), vec3(0.0f), -1.0f, -1, vec2(0.0f));
+
   Object target;
   hit.t = 1e10f;
   float t;
@@ -938,7 +938,7 @@ HitData traceScene(Ray ray, bool includeLight) {
     }
   }
 
-  if(hit.lightPower <= 0.f) {
+  if(hit.hit && hit.lightPower <= 0.f) {
     // hit.uv = hit.uv / (target.uvBounds.zw - target.uvBounds.xy) + target.uvBounds.xy;
     hit.uv *= target.options.w;
   }
@@ -1081,13 +1081,14 @@ vec3 trace(Ray ray, int sampleNum) {
   // use loop to simulate the recursive process as GLSL doesn't support recursions
   for(int bounce = 0; bounce < u_maxBounces; bounce++) {
     HitData hit = traceScene(ray, true);
-    Material mat = calculateMaterial(hit.matId, hit.uv);
 
     if(!hit.hit) {
       float t = 0.5f * (ray.direction.y + 1.0f);
       color += attenuation * mix(vec3(0.09f, 0.12f, 0.18f), vec3(0.18f, 0.21f, 0.27f), t);  // sky
       break;
     }
+
+    Material mat = calculateMaterial(hit.matId, hit.uv);
 
     // pulled this out of the light hit section again
     if(hit.lightPower > 0.f) {
