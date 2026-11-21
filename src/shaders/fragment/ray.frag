@@ -1033,7 +1033,7 @@ vec3 refractGlass(vec3 I, vec3 N, float eta, float cosThetaI, float etaSin2I) {
 // trace the shadow path and account for glassy objects
 // ie transmittance
 vec3 traceShadow(HitData hit, Object light, int sampleNum, int lightNum) {
-  vec3 toLight = light.centerRadius.xyz - hit.point;
+  vec3 toLight = light.testCenterRadius.xyz - hit.point;
   float lightDist = length(toLight);
   vec3 lightDir = toLight / lightDist;
 
