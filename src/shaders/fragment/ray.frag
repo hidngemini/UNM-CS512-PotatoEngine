@@ -1144,7 +1144,7 @@ vec3 traceShadow(HitData hit, Object light, int sampleNum, int lightNum) {
     // oh this wouldnt work properly since we dont always head towards the light after refraction
     // or reflection? idk too tired to reason abt it rn
     // am i missing the thing that stops when we reach the light did that get deleted? my head hurts
-    lightDist = length(light.centerRadius.xyz - position);
+    lightDist = length(light.testCenterRadius.xyz - position);
   }
 
   float diff = max(dot(hit.normal, lightDir), 0.0f);
