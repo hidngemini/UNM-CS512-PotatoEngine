@@ -1204,7 +1204,7 @@ vec3 trace(Ray ray, int sampleNum) {
           ray = Ray(hit.point + N * EPSILON_NORM, reflectGlass(I, N));
         } else {
           ray = Ray(hit.point - N * EPSILON_NORM, refractGlass(I, N, eta, cosThetaI, etaSin2I));
-          attenuation *= mat.ka.xyz;
+          attenuation *= mat.kd.xyz;
         }
 
         continue;
@@ -1245,7 +1245,7 @@ vec3 trace(Ray ray, int sampleNum) {
           // NOTE: tint from passing through or reflecting off
           // maybe reflect and refract should have diff color influence?
           // we have mat.kd and mat.ks to work with, reflect could make sense as ks...
-          attenuation *= mat.ka.xyz;
+          attenuation *= mat.kd.xyz;
         }
         ray = Ray(point, direction);
 
