@@ -92,6 +92,7 @@ export default class RayObject extends SceneObject {
     "radiusMinor",
     "bulge",
     "faces",
+    "castShadow",
   ];
 
   /**
@@ -142,6 +143,7 @@ export default class RayObject extends SceneObject {
    * @param {number} [options.faces=0]              how many faces the faceted object has (if 0 we say not faceted)...
    * @param {boolean} [options.light=false]         if the object is a light or not
    * @param {number} [options.lightPower=0]         the power of the object if its a light
+   * @param {boolean} [options.castShadow=true]     if the object should cast a shadow
    */
   constructor(
     label,
@@ -177,6 +179,7 @@ export default class RayObject extends SceneObject {
       radiusMinor = undefined,
       bulge = undefined,
       faces = 0,
+      castShadow = true,
     } = {},
   ) {
     super(label, {
@@ -199,6 +202,7 @@ export default class RayObject extends SceneObject {
     this.materialIndex = materialIndex;
     this.light = light;
     this.lightPower = lightPower;
+    this.castShadow = castShadow;
 
     this.radius = radius;
     this.halfSize = halfSize;
@@ -304,7 +308,7 @@ export default class RayObject extends SceneObject {
     // ivec4 meta (offset 0)
     view.setInt32(0 + offset, this.type, true);
     view.setInt32(4 + offset, this.materialIndex, true);
-    view.setInt32(8 + offset, this.faces ?? 0, true);
+    view.setInt32(8 + offset, this.castShadow ? -this.faces : this.faces, true);
     view.setInt32(12 + offset, this.isTranslateOnly() ? 1 : 0, true);
 
     // vec4 centerRadius (offset 16)

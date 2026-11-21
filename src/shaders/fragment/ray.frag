@@ -77,6 +77,8 @@ const int SHADOW_MODE_FAST_GLASS = 1;
 const int SHADOW_MODE_SIMPLE_GLASS = 2;
 const int SHADOW_MODE_TIR_GLASS = 3;
 
+const int NO_SHADOW = -1;
+
 ////////////////
 // RANDOMNESS //
 ////////////////
@@ -404,7 +406,7 @@ const int OBJECT_TRANSFORM_TRANSLATE_ONLY = 1;
 
 // all encompassing object layout passed from js.
 struct Object {
-  ivec4 meta;         // x    => type;    y => material?; z=> cyl: faceted (& count of faces) ; w => translate transform only?; 
+  ivec4 meta;         // x    => type;    y => material?; z=> castShadow ; w => translate transform only?; 
   vec4 centerRadius;  // xyz  => center;  w => cone, sphere, cyl: r, cube: half-size, torus: R, plane, rect: width
   vec4 options;       // x    => cyl, cone: height, torus:r, plane, rect:depth;     y=> cyl: bulge, rect:height   w => light: power, normal objects: uv scale;
   vec4 testCenterRadius; // center of the object transformed into world space so we can check rays against it rather than needing to always transform into object space 
@@ -1007,6 +1009,9 @@ HitData traceScene(Ray ray, bool includeLight) {
   // keep the closest hit in the scene 
   // wonder if we can depth sort objects to make faster?
   for(int i = 0; i < u_objectCount; ++i) {
+    if(includeLight && objects[i].meta.z < 0) {
+      continue;
+    }
     HitData candidate = calculateHit(objects[i], ray, i, false);
     if(candidate.hit && candidate.t < hit.t) {
       hit = candidate;
