@@ -1009,7 +1009,7 @@ HitData traceScene(Ray ray, bool includeLight) {
   // keep the closest hit in the scene 
   // wonder if we can depth sort objects to make faster?
   for(int i = 0; i < u_objectCount; ++i) {
-    if(includeLight && objects[i].meta.z < 0) {
+    if(!includeLight && objects[i].meta.z < 0) {
       continue;
     }
     HitData candidate = calculateHit(objects[i], ray, i, false);

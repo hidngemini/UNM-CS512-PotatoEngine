@@ -178,7 +178,7 @@ export default class RayObject extends SceneObject {
       depth = undefined,
       radiusMinor = undefined,
       bulge = undefined,
-      faces = 0,
+      faces = 5,
       castShadow = true,
     } = {},
   ) {
@@ -308,7 +308,11 @@ export default class RayObject extends SceneObject {
     // ivec4 meta (offset 0)
     view.setInt32(0 + offset, this.type, true);
     view.setInt32(4 + offset, this.materialIndex, true);
-    view.setInt32(8 + offset, this.castShadow ? -this.faces : this.faces, true);
+    view.setInt32(
+      8 + offset,
+      this.castShadow ? this.faces : -1 * this.faces,
+      true,
+    );
     view.setInt32(12 + offset, this.isTranslateOnly() ? 1 : 0, true);
 
     // vec4 centerRadius (offset 16)
