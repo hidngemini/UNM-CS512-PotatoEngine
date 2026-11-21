@@ -1089,7 +1089,7 @@ vec3 traceShadow(HitData hit, Object light, int sampleNum, int lightNum) {
       // or refraction, this produces reasonable looking, but not correct
       // color transmission
       if(!exit) {
-        transmittance *= mix(transmittance, mat.ka.xyz, u_shadowMixRatio);
+        transmittance *= mix(transmittance, mat.kd.xyz, u_shadowMixRatio);
         // transmittance = normalize(transmittance);
       }
     } else {
@@ -1123,7 +1123,7 @@ vec3 traceShadow(HitData hit, Object light, int sampleNum, int lightNum) {
       // only on exit doesnt look right, unsure what the difference is
       // will have to look inito later
       if(!exit) {
-        transmittance *= mix(vec3(1.f), mat.ka.xyz, u_shadowMixRatio);
+        transmittance *= mix(vec3(1.f), mat.kd.xyz, u_shadowMixRatio);
         // transmittance = normalize(transmittance);
       }
 
