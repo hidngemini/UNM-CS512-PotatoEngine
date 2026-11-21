@@ -31,12 +31,14 @@ export default class RayObject extends SceneObject {
   static OBJECT_TYPE_TORUS = 4;
   static OBJECT_TYPE_CYLINDER = 5;
   static OBJECT_TYPE_PLANE = 6;
+  static OBJECT_TYPE_RECT = 7;
   static OBJECT_TYPE_INVERTED_SPHERE = -1;
   static OBJECT_TYPE_INVERTED_CUBE = -2;
   static OBJECT_TYPE_INVERTED_CONE = -3;
   static OBJECT_TYPE_INVERTED_TORUS = -4;
   static OBJECT_TYPE_INVERTED_CYLINDER = -5;
   static OBJECT_TYPE_INVERTED_PLANE = -6;
+  static OBJECT_TYPE_INVERTED_RECT = -7;
 
   static OBJECT_BYTE_SIZE = 80; // 16 + 16 + 16 + 16+ 16
   // 64 + 48 ( mat3 padded to vec4 for some reason...)
@@ -58,6 +60,7 @@ export default class RayObject extends SceneObject {
         [RayObject.OBJECT_TYPE_TORUS, "OBJECT_TYPE_TORUS"],
         [RayObject.OBJECT_TYPE_CYLINDER, "OBJECT_TYPE_CYLINDER"],
         [RayObject.OBJECT_TYPE_PLANE, "OBJECT_TYPE_PLANE"],
+        [RayObject.OBJECT_TYPE_RECT, "OBJECT_TYPE_RECT"],
         [RayObject.OBJECT_TYPE_INVERTED_SPHERE, "OBJECT_TYPE_INVERTED_SPHERE"],
         [RayObject.OBJECT_TYPE_INVERTED_CUBE, "OBJECT_TYPE_INVERTED_CUBE"],
         [RayObject.OBJECT_TYPE_INVERTED_CONE, "OBJECT_TYPE_INVERTED_CONE"],
@@ -67,6 +70,7 @@ export default class RayObject extends SceneObject {
           "OBJECT_TYPE_INVERTED_CYLINDER",
         ],
         [RayObject.OBJECT_TYPE_INVERTED_PLANE, "OBJECT_TYPE_INVERTED_PLANE"],
+        [RayObject.OBJECT_TYPE_INVERTED_RECT, "OBJECT_TYPE_INVERTED_RECT"],
       ],
       cast: Number,
     },
@@ -246,6 +250,9 @@ export default class RayObject extends SceneObject {
           // (sqrt 2)
           radius = Math.max(this.width, this.depth) * 1.414213 * 1.5;
         }
+      case RayObject.OBJECT_TYPE_RECT:
+      case RayObject.OBJECT_TYPE_INVERTED_RECT:
+        radius = Math.max(this.width, this.depth, this.height) * 1.414213;
     }
     return radius * Math.max(...this.scale);
   }
@@ -319,6 +326,8 @@ export default class RayObject extends SceneObject {
         break;
       case RayObject.OBJECT_TYPE_PLANE:
       case RayObject.OBJECT_TYPE_INVERTED_PLANE:
+      case RayObject.OBJECT_TYPE_RECT:
+      case RayObject.OBJECT_TYPE_INVERTED_RECT:
         size = this.width;
         break;
       default:
@@ -337,14 +346,21 @@ export default class RayObject extends SceneObject {
     let options = { x: 0, y: 0, z: 0, w: 0 };
     switch (this.type) {
       case RayObject.OBJECT_TYPE_CYLINDER:
+      case RayObject.OBJECT_TYPE_INVERTED_CYLINDER:
         options.y = this.bulge ?? 0;
       case RayObject.OBJECT_TYPE_CONE:
+      case RayObject.OBJECT_TYPE_INVERTED_CONE:
         options.x = this.height ?? 1;
         break;
       case RayObject.OBJECT_TYPE_TORUS:
+      case RayObject.OBJECT_TYPE_INVERTED_TORUS:
         options.x = this.radiusMinor ?? 0.25;
         break;
+      case RayObject.OBJECT_TYPE_RECT:
+      case RayObject.OBJECT_TYPE_INVERTED_RECT:
+        options.y = this.height ?? 0;
       case RayObject.OBJECT_TYPE_PLANE:
+      case RayObject.OBJECT_TYPE_INVERTED_PLANE:
         options.x = this.depth ?? 0;
         break;
     }

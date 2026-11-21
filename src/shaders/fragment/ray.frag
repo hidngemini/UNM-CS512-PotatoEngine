@@ -380,6 +380,13 @@ struct Plane {
   float depth;
 };
 
+struct Rect {
+  vec3 center;
+  float width;
+  float depth;
+  float height;
+};
+
 // type flags used in the general object struct below
 const int OBJECT_TYPE_SPHERE = 1;
 const int OBJECT_TYPE_CUBE = 2;
@@ -387,6 +394,7 @@ const int OBJECT_TYPE_CONE = 3;
 const int OBJECT_TYPE_TORUS = 4;
 const int OBJECT_TYPE_CYLINDER = 5;
 const int OBJECT_TYPE_PLANE = 6;
+const int OBJECT_TYPE_RECT = 7;
 
 const int OBJECT_TRANSFORM_TRANSLATE_ONLY = 1;
 
@@ -397,8 +405,8 @@ const int OBJECT_TRANSFORM_TRANSLATE_ONLY = 1;
 // all encompassing object layout passed from js.
 struct Object {
   ivec4 meta;         // x    => type;    y => material?; z=> cyl: faceted (& count of faces) ; w => translate transform only?; 
-  vec4 centerRadius;  // xyz  => center;  w => cone, sphere, cyl: r, cube: half-size, torus: R, plane: width
-  vec4 options;       // x    => cyl, cone: height, torus:r, plane:depth;     y=> cyl: bulge,   w => light: power, normal objects: uv scale;
+  vec4 centerRadius;  // xyz  => center;  w => cone, sphere, cyl: r, cube: half-size, torus: R, plane, rect: width
+  vec4 options;       // x    => cyl, cone: height, torus:r, plane, rect:depth;     y=> cyl: bulge, rect:height   w => light: power, normal objects: uv scale;
   vec4 testCenterRadius; // center of the object transformed into world space so we can check rays against it rather than needing to always transform into object space 
   vec4 uvBounds;       // xy   => top left; zw => bottom right;
 };
@@ -535,6 +543,23 @@ vec2 calculateConeUV(
   float u = atan(p.z, p.x) / (2.0f * PI) + 0.5f;
   float v = (p.y + 0.5f * cone.h) / cone.h;
   return vec2(u, v);
+}
+
+vec2 calculateRectUV(vec3 localPoint, vec3 localNormal, Rect rect) {
+  vec3 p = localPoint - rect.center;
+  vec3 n = abs(localNormal);
+
+  vec2 uv;
+
+  if(n.x >= n.y && n.x >= n.z) {
+    uv = vec2(p.z / rect.depth, p.y / rect.height);
+  } else if(n.y >= n.z) {
+    uv = vec2(p.x / rect.width, p.z / rect.depth);
+  } else {
+    uv = vec2(p.x / rect.width, p.y / rect.height);
+  }
+
+  return uv + 0.5f;
 }
 
 ///////////////////////////////
@@ -747,6 +772,42 @@ bool intersectTorus(
   return false;
 }
 
+// slab test rect prism so we dont have to scale cubes constantly
+// although normals are slightly different
+bool intersectRect(Rect rect, Ray ray, out float t, out vec3 normal) {
+  vec3 halfSize = vec3(rect.width, rect.height, rect.depth) * 0.5f;
+
+  vec3 t0s = (rect.center - halfSize - ray.origin) / ray.direction;
+  vec3 t1s = (rect.center + halfSize - ray.origin) / ray.direction;
+  vec3 tmin = min(t0s, t1s);
+  vec3 tmax = max(t0s, t1s);
+
+  float t0 = max(max(tmin.x, tmin.y), tmin.z);
+  float t1 = min(min(tmax.x, tmax.y), tmax.z);
+
+  if(t1 < 0.0f || t0 > t1)
+    return false;
+
+  t = t0 > 0.001f ? t0 : t1;
+  if(t < 0.001f)
+    return false;
+
+  vec3 local = ray.origin + ray.direction * t - rect.center;
+  vec3 a = abs(local / halfSize);
+
+  if(a.x >= a.y && a.x >= a.z) {
+
+    normal = vec3(sign(local.x), 0.0f, 0.0f);
+  } else if(a.y >= a.z) {
+
+    normal = vec3(0.0f, sign(local.y), 0.0f);
+  } else {
+
+    normal = vec3(0.0f, 0.0f, sign(local.z));
+  }
+  return true;
+}
+
 // transform ray into local space by looking up cached transform
 // note this means we dont need to caclculate inverse all the time
 Ray toObjectSpace(Ray r, int otc, bool light) {
@@ -819,7 +880,7 @@ bool intersectObject(
   bool didHit = false;
 
   int type = abs(obj.meta.x);
-  float invert = float(obj.meta.x / type);
+  float invert = obj.meta.x < 0 ? -1.0f : 1.0f;
 
   if(type == OBJECT_TYPE_SPHERE) {
     Sphere s = Sphere(center, obj.centerRadius.w);
@@ -863,6 +924,14 @@ bool intersectObject(
     }
   } else if(type == OBJECT_TYPE_CYLINDER) {
     // TODO
+  } else if(type == OBJECT_TYPE_RECT) {
+    Rect rect = Rect(center, obj.centerRadius.w, obj.options.x, obj.options.y);
+
+    didHit = intersectRect(rect, localRay, localT, localNormal);
+    if(didHit) {
+      vec3 point = localRay.origin + localRay.direction * localT;
+      uv = calculateRectUV(point, localNormal, rect);
+    }
   }
 
   if(!didHit) {
