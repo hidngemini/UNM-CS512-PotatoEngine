@@ -325,7 +325,7 @@ Material calculateMaterial(int matId, vec2 uv) {
 
   // hm probably need a flag for what the texture applies to, 
   // could use the floats in the .w position of the material as a weight ig
-  selected.ka = textureColor;
+  // selected.ka = ;
   selected.kd = textureColor;
   selected.ks = textureColor;
 
