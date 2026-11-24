@@ -886,58 +886,53 @@ bool intersectObject(
 
   if(type == OBJECT_TYPE_SPHERE) {
     Sphere s = Sphere(center, obj.centerRadius.w);
-    // s.radius = 5.0;
     didHit = intersectSphere(s, localRay, localT);
-    if(didHit) {
-      vec3 p = localRay.origin + localRay.direction * localT;
-      localNormal = normalize((p - s.center) / s.radius);
-      uv = calculateSphereUV(p, s);
-    }
   } else if(type == OBJECT_TYPE_CUBE) {
     Cube c = Cube(center, obj.centerRadius.w);
-
     didHit = intersectCube(c, localRay, localT, localNormal);
-    if(didHit) {
-      vec3 p = localRay.origin + localRay.direction * localT;
-      uv = calculateCubeUV(p, localNormal, c);
-    }
   } else if(type == OBJECT_TYPE_PLANE) {
     Plane p = Plane(center, obj.centerRadius.w, obj.options.x);
-
     didHit = intersectPlane(p, localRay, localT, localNormal);
-    if(didHit) {
-      vec3 point = localRay.origin + localRay.direction * localT;
-      uv = calculatePlaneUV(point, p);
-    }
   } else if(type == OBJECT_TYPE_CONE) {
     Cone c = Cone(center, obj.centerRadius.w, obj.options.x);
-
     didHit = intersectCone(c, localRay, localT, localNormal);
-    if(didHit) {
-      vec3 point = localRay.origin + localRay.direction * localT;
-      uv = calculateConeUV(point, localNormal, c);
-    }
   } else if(type == OBJECT_TYPE_TORUS) {
     Torus t = Torus(center, obj.centerRadius.w, obj.options.x);
-
     didHit = intersectTorus(t, localRay, localT, localNormal);
-    if(didHit) {
-      uv = vec2(0);
-    }
   } else if(type == OBJECT_TYPE_CYLINDER) {
     // TODO
   } else if(type == OBJECT_TYPE_RECT) {
     Rect rect = Rect(center, obj.centerRadius.w, obj.options.x, obj.options.y);
-
     didHit = intersectRect(rect, localRay, localT, localNormal);
-    if(didHit) {
-      vec3 point = localRay.origin + localRay.direction * localT;
-      uv = calculateRectUV(point, localNormal, rect);
-    }
   }
 
   if(!didHit) {
     return false;
+  }
+
+  vec3 p = localRay.origin + localRay.direction * localT;
+
+  if(type == OBJECT_TYPE_SPHERE) {
+    Sphere s = Sphere(center, obj.centerRadius.w);
+    localNormal = normalize((p - s.center) / s.radius);
+    uv = calculateSphereUV(p, s);
+  } else if(type == OBJECT_TYPE_CUBE) {
+    Cube c = Cube(center, obj.centerRadius.w);
+    uv = calculateCubeUV(p, localNormal, c);
+  } else if(type == OBJECT_TYPE_PLANE) {
+    Plane plane = Plane(center, obj.centerRadius.w, obj.options.x);
+    uv = calculatePlaneUV(p, plane);
+  } else if(type == OBJECT_TYPE_CONE) {
+    Cone c = Cone(center, obj.centerRadius.w, obj.options.x);
+    uv = calculateConeUV(p, localNormal, c);
+  } else if(type == OBJECT_TYPE_TORUS) {
+    // Torus t = Torus(center, obj.centerRadius.w, obj.options.x);
+    uv = vec2(0);
+  } else if(type == OBJECT_TYPE_CYLINDER) {
+    uv = vec2(0);
+  } else if(type == OBJECT_TYPE_RECT) {
+    Rect rect = Rect(center, obj.centerRadius.w, obj.options.x, obj.options.y);
+    uv = calculateRectUV(p, localNormal, rect);
   }
 
   t = localT;
