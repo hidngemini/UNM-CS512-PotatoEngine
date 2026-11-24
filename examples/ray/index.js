@@ -230,6 +230,7 @@ flight.setupMouseControls(scene, {
 const cameraCB = flight.setupKeyboardControls(scene);
 
 function updateScene(dt) {
+  syncProperties();
   requestAnimationFrame(scene.render);
   cameraCB(dt);
 
