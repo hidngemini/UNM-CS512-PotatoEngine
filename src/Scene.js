@@ -34,6 +34,7 @@ import { TYPE_COLOR_SELECTOR, TYPE_READ_ONLY } from "./controls/sceneEditor";
  */
 export default class Scene {
   static EDITOR_PROPERTIES = [
+    { name: "fps", type: TYPE_READ_ONLY },
     { name: "startTime", type: TYPE_READ_ONLY },
     "time",
     "rotationX",
@@ -77,6 +78,10 @@ export default class Scene {
     // start time and time elapsed
     this.startTime = Date.now();
     this.time = 0;
+    this.fps = 0;
+    this._fpsElapsed = 0;
+    this._fpsFrames = 0;
+
 
     // use to check if we actually need to switch shaders / materials
     this.activeProgram = undefined;
@@ -672,6 +677,16 @@ export default class Scene {
    * @param {number} dt timestep in seconds
    */
   update(dt) {
+    // running fps count
+    this._fpsElapsed += dt;
+    this._fpsFrames++;
+
+    if (this._fpsElapsed >= 1) {
+      this.fps = Math.round(this._fpsFrames / this._fpsElapsed);
+      this._fpsElapsed = 0;
+      this._fpsFrames = 0;
+    }
+
     if (!!this.updateCB) {
       this.updateCB(dt);
     }

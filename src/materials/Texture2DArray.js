@@ -285,7 +285,6 @@ export default class Texture2DArray {
       0,
       layer,
     );
-    // console.log("attaching layer");
     this._sources.set(layer, { src: "Procedural Material", framebuffer });
 
     gl.drawBuffers([gl.COLOR_ATTACHMENT0]);

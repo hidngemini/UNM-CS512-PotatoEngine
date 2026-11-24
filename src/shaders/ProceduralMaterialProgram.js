@@ -44,7 +44,6 @@ export default class ProceduralMaterialProgram extends ShaderProgram {
     // explicitly set params here insyead of relying on the
     // .uniforms helper
     gl.uniform1i(typeLoc, material.type);
-    console.log(material.label,material.params)
     gl.uniform4fv(paramsLoc, material.params);
     gl.uniform1i(animatedLoc, material.animated ? 1 : 0);
 
