@@ -9,7 +9,7 @@ import {
 } from "../controls/sceneEditor";
 import { RayMaterial } from "../materials";
 import DataTexture from "../materials/DataTexture";
-import { RayObject, SceneObject } from "../objects"
+import { RayObject, SceneObject } from "../objects";
 import ShaderProgram from "./ShaderProgram";
 
 /**
@@ -92,7 +92,6 @@ export default class RayShaderProgram extends ShaderProgram {
     this.hasLight = hasLight;
     this.hasMaterial = hasMaterial;
 
-
     this.objectDataTexture = undefined;
     this.lightDataTexture = undefined;
     this.materialBuffer = undefined;
@@ -141,6 +140,8 @@ export default class RayShaderProgram extends ShaderProgram {
       "u_lightData",
       "u_lightDataWidth",
       "u_materialCount",
+      "u_materialData",
+      "u_materialDataWidth",
       "u_raySamples",
       "u_maxShadowLayers",
       "u_shadowMixRatio",
@@ -172,110 +173,20 @@ export default class RayShaderProgram extends ShaderProgram {
     this.uniforms.u_maxShadowLayers = 4;
     this.uniforms.u_textures = 0;
     this.uniforms.u_texturesBaked = 1;
-    
-    const maxBlockBytes = gl.getParameter(gl.MAX_UNIFORM_BLOCK_SIZE);
+
+    let maxSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+    const maxTextureBytes = maxSize * maxSize * 16;
     this.maxObjects = Math.min(
-      Math.floor(maxBlockBytes / RayObject.OBJECT_BYTE_SIZE),
-      Math.floor(maxBlockBytes / RayObject.OBJECT_TRANSFORM_BYTE_SIZE),
+      Math.floor(maxTextureBytes / RayObject.OBJECT_BYTE_SIZE),
+      Math.floor(maxTextureBytes / RayObject.OBJECT_TRANSFORM_BYTE_SIZE),
     );
     this.maxLights = this.maxObjects;
     this.maxMaterials = Math.floor(
-      maxBlockBytes / RayMaterial.MATERIAL_BYTE_SIZE,
+      maxTextureBytes / RayMaterial.MATERIAL_BYTE_SIZE,
     );
 
+    this.materialDataTexture = new DataTexture(gl);
     this.objectDataTexture = new DataTexture(gl);
     this.lightDataTexture = new DataTexture(gl);
-
-    this._initBuffers(gl);
-  }
-
-  /**
-   * Update the light count uniform
-   * @param {WebGL2RenderingContext} gl the webgl2 context from the scene canvas
-   * @param {number} count how many lights are currently in the scene
-   */
-  setLightCount(count, gl = this._gl) {
-    gl.uniform1i(this.uLightCount, count);
-  }
-
-  /**
-   * Reserve buffers for object, light, material information
-   *
-   * this is slightly faster
-   * than updating a bunch of uniform locations but a little more annoying
-   * @param {WebGL2RenderingContext} gl the webgl2 context from the scene canvas
-   */
-  _initBuffers(gl = this._gl) {
-    this.lightBuffer = this._initBuffer(
-      0,
-      this.maxLights,
-      RayObject.OBJECT_BYTE_SIZE,
-    );
-    this.objectBuffer = this._initBuffer(
-      1,
-      this.maxObjects,
-      RayObject.OBJECT_BYTE_SIZE,
-    );
-    this.materialBuffer = this._initBuffer(
-      2,
-      this.maxMaterials,
-      RayMaterial.MATERIAL_BYTE_SIZE,
-    );
-    this.objectTransformBuffer = this._initBuffer(
-      3,
-      this.maxObjects,
-      RayObject.OBJECT_TRANSFORM_BYTE_SIZE,
-    );
-    this.lightTransformBuffer = this._initBuffer(
-      4,
-      this.maxLights,
-      RayObject.OBJECT_TRANSFORM_BYTE_SIZE,
-    );
-
-    const blockBindings = [
-      ["lightBlock", 0],
-      ["objectBlock", 1],
-      ["materialBlock", 2],
-      ["objectTransformBlock", 3],
-      ["lightTransformBlock", 4],
-    ];
-
-    for (const [blockName, bindingPoint] of blockBindings) {
-      const blockIndex = gl.getUniformBlockIndex(this.program, blockName);
-
-      // might be inactive if unused or nonexistanct
-      if (blockIndex !== gl.INVALID_INDEX) {
-        gl.uniformBlockBinding(this.program, blockIndex, bindingPoint);
-      }
-    }
-
-    gl.bindBuffer(gl.UNIFORM_BUFFER, null);
-  }
-
-  /**
-   * initial setup for a buffer
-   * @param {number} binding
-   * @param {number} capacity
-   * @param {number} stride
-   * @param {WebGL2RenderingContext} gl
-   */
-  _initBuffer(binding, capacity, stride, gl = this._gl) {
-    const size = capacity * stride;
-    const maxBlockSize = gl.getParameter(gl.MAX_UNIFORM_BLOCK_SIZE);
-
-    // should probably auto adjust capacity but error works for now
-    if (size > maxBlockSize) {
-      throw new Error(
-        `block needs ${size} bytes; device limit is ${maxBlockSize}`,
-      );
-    }
-
-    const buffer = gl.createBuffer();
-
-    gl.bindBuffer(gl.UNIFORM_BUFFER, buffer);
-    gl.bufferData(gl.UNIFORM_BUFFER, size, gl.DYNAMIC_DRAW);
-    gl.bindBufferBase(gl.UNIFORM_BUFFER, binding, buffer);
-
-    return buffer;
   }
 }

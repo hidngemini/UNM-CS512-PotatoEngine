@@ -16,6 +16,8 @@ import RayTextureDescriptor from "./RayTextureDescriptor";
  */
 export default class RayMaterial extends Material {
   static MATERIAL_BYTE_SIZE = 80;
+  static MATERIAL_TEXELS = 5; // 80 / 16
+  static MATERIAL_FLOATS = RayMaterial.MATERIAL_TEXELS * 4;
 
   static EDITOR_PROPERTIES = [
     { name: "ka", type: TYPE_COLOR_SELECTOR },
@@ -79,7 +81,10 @@ export default class RayMaterial extends Material {
         return "No textures described";
       }
       return this.textureInformation
-        .map((e, i) => `RayTextureDescriptor(${this._textures[i]}): ` + e.toString())
+        .map(
+          (e, i) =>
+            `RayTextureDescriptor(${this._textures[i]}): ` + e.toString(),
+        )
         .join("<br>");
     };
   }
@@ -132,6 +137,27 @@ export default class RayMaterial extends Material {
     for (let i = 0; i < 8; i++) {
       const desc = this._textures[i] ?? 0;
       view.setUint16(64 + i * 2 + offset, desc, true);
+    }
+  }
+
+  /**
+   * pack material into floats for texture data
+   * 
+   * this one is simpler so we won reuse packData, no point in the time loss
+   * 
+   * @param {Float32Array} floats 
+   * @param {number} offset float offset, not byte
+   */
+  packTextureData(floats, offset) {
+    floats.set([this.ka[0], this.ka[1], this.ka[2], 0], offset);
+    floats.set([this.kd[0], this.kd[1], this.kd[2], 0], offset + 4);
+    floats.set([this.ks[0], this.ks[1], this.ks[2], 0], offset + 8);
+    floats.set(
+      [this.specularExp, this.refractiveIndex, this.reflectivity, 0],
+      offset + 12,
+    );
+    for (let i = 0; i < 8; i++) {
+      floats[offset + 16 + i] = this._textures[i] ?? 0;
     }
   }
 

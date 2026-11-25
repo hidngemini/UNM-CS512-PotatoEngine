@@ -70,7 +70,6 @@ function updateUniforms(gl, shaderProgram, scene) {
   shaderProgram.uniforms.u_fov = -scene.camera.fov;
 
   const seenTextures = new Set();
-  packMaterials(gl, [...this.materials], shaderProgram);
   for (const mat of this.materials) {
     const tl = mat.textureMapLabel;
 
@@ -101,7 +100,7 @@ function updateUniforms(gl, shaderProgram, scene) {
     gl,
     [...this.objects],
     this.materialMap,
-    2,
+    seenTextures.size,
     shaderProgram.locs.u_objectData,
     shaderProgram.locs.u_objectCount,
   );
@@ -110,9 +109,19 @@ function updateUniforms(gl, shaderProgram, scene) {
     gl,
     [...this.lights],
     this.materialMap,
-    3,
+    seenTextures.size + 1,
     shaderProgram.locs.u_lightData,
     shaderProgram.locs.u_lightCount,
+  );
+
+  // TODO maybe shift all the loc handling into upload objects too, this is nice
+  shaderProgram.materialDataTexture.uploadMaterials(
+    gl,
+    this.materials,
+    seenTextures.size + 2,
+    shaderProgram.locs.u_materialData,
+    shaderProgram.locs.u_materialCount,
+    shaderProgram.locs.u_materialDataWidth,
   );
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);

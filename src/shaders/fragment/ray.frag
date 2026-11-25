@@ -257,11 +257,36 @@ vec4 sampleTexture(uint layer, vec2 uv) {
 // MATERIAL CONFIG //
 /////////////////////
 
-// should allow materials calculated in the shader as well
-// perhaps use negative value in obj.meta.y to signal to the shader? 
-layout(std140) uniform materialBlock {
-  Material materials[MAX_MATERIALS];
-};
+uniform sampler2D u_materialData;
+uniform int u_materialDataWidth;
+
+const int MATERIAL_TEXELS = 6;
+
+// fetch a single texel from material texture
+vec4 fetchMaterialTexel(int materialIndex, int texelOffset) {
+  int linearIndex = materialIndex * MATERIAL_TEXELS + texelOffset;
+  ivec2 coord = ivec2(linearIndex % u_materialDataWidth, linearIndex / u_materialDataWidth);
+  return texelFetch(u_materialData, coord, 0);
+}
+
+// fetch a material from the data texture
+Material fetchMaterial(int materialIndex) {
+  Material material;
+
+  material.ka = fetchMaterialTexel(materialIndex, 0);
+  material.kd = fetchMaterialTexel(materialIndex, 1);
+  material.ks = fetchMaterialTexel(materialIndex, 2);
+  material.optics = fetchMaterialTexel(materialIndex, 3);
+
+  // texture indices
+  vec4 textureIndices0 = fetchMaterialTexel(materialIndex, 4);
+  // vec4 textureIndices1 = fetchMaterialTexel(materialIndex, 5);
+
+  material.textures = uvec4(uint(textureIndices0.x), uint(textureIndices0.y), uint(textureIndices0.z), uint(textureIndices0.w));
+  // TODO load the rest of the texels if needed, for now i dont see more than 4 used lol
+
+  return material;
+}
 
 // materials defined inside the shader rather than provided by js
 // should allow me some flexibility, can probably do something similar with the objects
@@ -282,7 +307,7 @@ Material getMaterial(int matId) {
   if(matId < 0) {
     return shaderMaterials[-1 * (matId + 1)];
   } else {
-    return materials[matId];
+    return fetchMaterial(matId);
   }
 }
 
@@ -442,18 +467,22 @@ vec4 fetchRecordTexel(
   return texelFetch(dataTexture, coord, 0);
 }
 
+// fetch an object directly from the obejct data texture 
 Object fetchObject(int index) {
   vec4 meta = fetchRecordTexel(u_objectData, u_objectDataWidth, index, 0);
 
   return Object(ivec4(round(meta)), fetchRecordTexel(u_objectData, u_objectDataWidth, index, 1), fetchRecordTexel(u_objectData, u_objectDataWidth, index, 2), fetchRecordTexel(u_objectData, u_objectDataWidth, index, 3), fetchRecordTexel(u_objectData, u_objectDataWidth, index, 4));
 }
 
+// fetch a light directly from the light data texture 
 Object fetchLight(int index) {
   vec4 meta = fetchRecordTexel(u_lightData, u_lightDataWidth, index, 0);
 
   return Object(ivec4(round(meta)), fetchRecordTexel(u_lightData, u_lightDataWidth, index, 1), fetchRecordTexel(u_lightData, u_lightDataWidth, index, 2), fetchRecordTexel(u_lightData, u_lightDataWidth, index, 3), fetchRecordTexel(u_lightData, u_lightDataWidth, index, 4));
 }
 
+// get the transformation information from the texture, 
+// note we pack it right after the object tihis time
 ObjectTransformCache fetchTransform(sampler2D dataTexture, int textureWidth, int index) {
   int base = index * OBJECT_RECORD_TEXELS + OBJECT_DATA_TEXELS;
 
@@ -469,10 +498,12 @@ ObjectTransformCache fetchTransform(sampler2D dataTexture, int textureWidth, int
   return ObjectTransformCache(mat4(m0, m1, m2, m3), mat3(n0.xyz, n1.xyz, n2.xyz));
 }
 
+// fetch the transform for a given object
 ObjectTransformCache fetchObjectTransform(int index) {
   return fetchTransform(u_objectData, u_objectDataWidth, index);
 }
 
+// fetch the transform for a given light
 ObjectTransformCache fetchLightTransform(int index) {
   return fetchTransform(u_lightData, u_lightDataWidth, index);
 }
