@@ -220,7 +220,7 @@ export default class RayObject extends SceneObject {
 
   /**
    * roughly calculate the hit radius of the object
-   * @returns
+   * @returns {number}
    */
   getRadius() {
     let radius;
@@ -397,9 +397,9 @@ export default class RayObject extends SceneObject {
   }
 
   /**
-   *
+   * Pack the transformation cache data into the view provided
    * @param {*} view
-   * @param {*} offset
+   * @param {number} offset
    */
   packTransformData(view, offset) {
     let mat = this.M;

@@ -42,22 +42,44 @@ import { Scene } from "..";
  * @param {Scene} scene The scene to attach the controls to
  * @param {Object} [options={}]
  * @param {number} [options.sensitivity=0.005]
+ * @param {number} [options.scaleYaw=1]
+ * @param {number} [options.scalePitch=1]
  */
-export function setupMouseControls(scene, { sensitivity = 0.005 } = {}) {
+export function setupMouseControls(
+  scene,
+  { sensitivity = 0.005, scaleYaw = 1, scalePitch = 1 } = {},
+) {
   const canvas = scene.canvas;
   // Mouse and keyboard interactions
   let mouseDown = false,
     lastX,
     lastY;
 
-  canvas.addEventListener("mousedown", (e) => {
+  // take over touch events
+  canvas.style.touchAction = "none";
+
+  // should also cover mouse events
+  canvas.addEventListener("pointerdown", (e) => {
+    if (!e.isPrimary || e.button !== 0) {
+      return;
+    }
+
     mouseDown = true;
     lastX = e.clientX;
     lastY = e.clientY;
+
+    canvas.setPointerCapture(e.pointerId);
   });
-  canvas.addEventListener("mouseup", () => (mouseDown = false));
-  canvas.addEventListener("mouseleave", () => (mouseDown = false));
-  canvas.addEventListener("mousemove", (e) => {
+  canvas.addEventListener("pointerup", () => {
+    mouseDown = false;
+  });
+  canvas.addEventListener("pointercancel", () => {
+    mouseDown = false;
+  });
+  canvas.addEventListener("lostpointercapture", () => {
+    mouseDown = false;
+  });
+  canvas.addEventListener("pointermove", (e) => {
     if (!mouseDown) return;
     let dx = e.clientX - lastX;
     let dy = e.clientY - lastY;
@@ -65,7 +87,10 @@ export function setupMouseControls(scene, { sensitivity = 0.005 } = {}) {
     // TODO: yaw and pitch arent perfect since pitch doesnt always make you look
     //       downwards, as it depends on your yaw alignment. i dont really want to
     //       do that math rn but it should actually be a simple correction
-    scene.camera.rotate(dx * sensitivity, dy * sensitivity);
+    scene.camera.rotate(
+      dx * sensitivity * scaleYaw,
+      dy * sensitivity * scalePitch,
+    );
 
     lastX = e.clientX;
     lastY = e.clientY;
@@ -86,7 +111,7 @@ export function setupMouseControls(scene, { sensitivity = 0.005 } = {}) {
  */
 export function setupKeyboardControls(
   scene,
-  { speed = 5, response = 0.15 } = {},
+  { speed = scene.camera.speed, response = 0.15 } = {},
 ) {
   const pressed = new Set();
   const velocity = [0, 0, 0];
@@ -116,16 +141,26 @@ export function setupKeyboardControls(
    * @param {*} event
    */
   function handleKeyDown(event) {
+    // we will only update this on a key press so ok to handle here
+    speed = scene.camera.speed;
+
     const key = normalizeKey(event.key);
 
     if (key == "o") {
       orthographic = true;
     } else if (key == "p") {
       orthographic = false;
+    } else if (key == "q") {
+      scene.camera.speed /= 2;
+    } else if (key == "e") {
+      scene.camera.speed *= 2;
     }
 
     if (!handledKeys.has(key)) return;
-    event.preventDefault();
+    // need these for the editor
+    if (key !== "0" &amp;&amp; key !== "-") {
+      event.preventDefault();
+    }
     pressed.add(key);
   }
 
@@ -145,6 +180,16 @@ export function setupKeyboardControls(
   window.addEventListener("blur", () => {
     pressed.clear();
   });
+
+  createDPad(
+    scene,
+    (key) => {
+      pressed.add(key);
+    },
+    (key) => {
+      pressed.delete(key);
+    },
+  );
 
   /**
    * Smooth movement update function, call this in your scene update handler
@@ -170,9 +215,7 @@ export function setupKeyboardControls(
     let y = vertical;
     let z = -strafe * Math.sin(yaw) + forward * Math.cos(yaw);
 
-
-    let adjustedSpeed = pressed.has("alt") ? speed * 2 : speed;
-    const target = [x * adjustedSpeed, y * adjustedSpeed, z * adjustedSpeed];
+    const target = [x * speed, y * speed, z * speed];
     const expSmoothing = 1 - Math.exp(-dt / response);
 
     for (let i = 0; i &lt; 3; i++) {
@@ -195,6 +238,75 @@ export default {
   setupKeyboardControls,
   setupMouseControls,
 };
+
+/**
+ * mobile accessibility since my computer has no hope of rendering
+ * the ray tracing scenes, but my phone can...
+ *
+ * TODO maybe suggest mobile support provided to the students for this assignment
+ *
+ * Note that we expect the scene canvas to be inside a "canvas-wrapper"...
+ * - see the common template layout
+ * - https://symbl.cc/en/unicode-table/#miscellaneous-symbols-and-arrows
+ * - not sure i like up and down, go back to link above later
+ */
+function createDPad(scene, press, release) {
+  const directions = [
+    { key: "w", label: "Forward", row: 1, col: 2, symbol: "^" },
+    { key: "a", label: "Left", row: 2, col: 1, symbol: "&lt;" },
+    { key: "s", label: "Backward", row: 2, col: 2, symbol: "v" },
+    { key: "d", label: "Right", row: 2, col: 3, symbol: ">" },
+    { key: "shift", label: "Down", row: 1, col: 1, symbol: "⭘" },
+    { key: " ", label: "Up", row: 1, col: 3, symbol: "x" },
+  ];
+
+  let dpadElement = document.createElement("div");
+  dpadElement.setAttribute("aria-label", "Camera movement controls");
+  dpadElement.classList.add("canvas-dpad");
+
+  for (const direction of directions) {
+    const button = document.createElement("button");
+
+    button.type = "button";
+    button.textContent = direction.symbol;
+    button.setAttribute("aria-label", direction.label);
+
+    button.style.cssText = `
+        grid-row: ${direction.row};
+        grid-column: ${direction.col};
+      `;
+
+    button.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      button.setPointerCapture(event.pointerId);
+      press(direction.key);
+      button.classList.add("pressed");
+    });
+
+    button.addEventListener("pointerup", (event) => {
+      release(direction.key);
+      button.classList.remove("pressed");
+    });
+
+    button.addEventListener("pointercancel", (event) => {
+      release(direction.key);
+      button.classList.remove("pressed");
+    });
+
+    button.addEventListener("lostpointercapture", (event) => {
+      release(direction.key);
+      button.classList.remove("pressed");
+    });
+
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+    });
+
+    dpadElement.appendChild(button);
+  }
+
+  scene.canvas.parentElement.appendChild(dpadElement);
+}
 </code></pre>
         </article>
     </section>
@@ -205,13 +317,13 @@ export default {
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-Scene.html">Scene</a></li><li><a href="module-controls_basic.html">controls/basic</a></li><li><a href="module-controls_flight.html">controls/flight</a></li><li><a href="module-lights_Light.html">lights/Light</a></li><li><a href="module-materials_Material.html">materials/Material</a></li><li><a href="module-materials_PhongMaterial.html">materials/PhongMaterial</a></li><li><a href="module-materials_RayMaterial.html">materials/RayMaterial</a></li><li><a href="module-materials_Texture2D.html">materials/Texture2D</a></li><li><a href="module-materials_Texture2DArray.html">materials/Texture2DArray</a></li><li><a href="module-materials_TextureColorRamp.html">materials/TextureColorRamp</a></li><li><a href="module-materials_TexturedMaterial.html">materials/TexturedMaterial</a></li><li><a href="module-materials_common.html">materials/common</a></li><li><a href="module-objects_FloatingObject.html">objects/FloatingObject</a></li><li><a href="module-objects_PhysicsObject.html">objects/PhysicsObject</a></li><li><a href="module-objects_PrimitiveObject.html">objects/PrimitiveObject</a></li><li><a href="module-objects_RayObject.html">objects/RayObject</a></li><li><a href="module-objects_SceneObject.html">objects/SceneObject</a></li><li><a href="module-objects_armature.html">objects/armature</a></li><li><a href="module-objects_compositions.html">objects/compositions</a></li><li><a href="module-objects_helpers.html">objects/helpers</a></li><li><a href="module-objects_loaders_BVHObject.html">objects/loaders/BVHObject</a></li><li><a href="module-objects_loaders_bvhLoader.html">objects/loaders/bvhLoader</a></li><li><a href="module-objects_loaders_objLoader.html">objects/loaders/objLoader</a></li><li><a href="module-objects_primitives.html">objects/primitives</a></li><li><a href="module-renderers.html">renderers</a></li><li><a href="module-renderers_RayRenderPass.html">renderers/RayRenderPass</a></li><li><a href="module-renderers_RenderPass.html">renderers/RenderPass</a></li><li><a href="module-shaders_PhongShaderProgram.html">shaders/PhongShaderProgram</a></li><li><a href="module-shaders_Shader.html">shaders/Shader</a></li><li><a href="module-shaders_ShaderProgram.html">shaders/ShaderProgram</a></li><li><a href="module-util_color.html">util/color</a></li><li><a href="module-util_transformations.html">util/transformations</a></li><li><a href="module-util_vec3.html">util/vec3</a></li><li><a href="module-util_vec4.html">util/vec4</a></li></ul><h3>Classes</h3><ul><li><a href="ArmatureBone.html">ArmatureBone</a></li><li><a href="Camera.html">Camera</a></li><li><a href="module.exports.html">exports</a></li><li><a href="module-Scene.html">Scene</a></li><li><a href="module-lights_Light.html">lights/Light</a></li><li><a href="module-materials_Material.html">materials/Material</a></li><li><a href="module-materials_PhongMaterial.html">materials/PhongMaterial</a></li><li><a href="module-materials_RayMaterial.html">materials/RayMaterial</a></li><li><a href="module-materials_Texture2D.html">materials/Texture2D</a></li><li><a href="module-materials_Texture2DArray.html">materials/Texture2DArray</a></li><li><a href="module-materials_TextureColorRamp.html">materials/TextureColorRamp</a></li><li><a href="module-materials_TexturedMaterial.html">materials/TexturedMaterial</a></li><li><a href="module-objects_FloatingObject.html">objects/FloatingObject</a></li><li><a href="module-objects_PhysicsObject.html">objects/PhysicsObject</a></li><li><a href="module-objects_PrimitiveObject.html">objects/PrimitiveObject</a></li><li><a href="module-objects_RayObject.html">objects/RayObject</a></li><li><a href="module-objects_SceneObject.html">objects/SceneObject</a></li><li><a href="module-objects_armature.html">objects/armature</a></li><li><a href="module-objects_armature.Armature.html">Armature</a></li><li><a href="module-objects_loaders_bvhLoader_Joint.html">objects/loaders/bvhLoader/Joint</a></li><li><a href="module-renderers_RayRenderPass.html">renderers/RayRenderPass</a></li><li><a href="module-renderers_RenderPass.html">renderers/RenderPass</a></li><li><a href="module-shaders_PhongShaderProgram.html">shaders/PhongShaderProgram</a></li><li><a href="module-shaders_Shader.html">shaders/Shader</a></li><li><a href="module-shaders_ShaderProgram.html">shaders/ShaderProgram</a></li><li><a href="objects_loaders_BVHObject.html">objects/loaders/BVHObject</a></li><li><a href="objects_loaders_BVHObjectRoot.html">objects/loaders/BVHObjectRoot</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-Scene.html">Scene</a></li><li><a href="module-controls_basic.html">controls/basic</a></li><li><a href="module-controls_flight.html">controls/flight</a></li><li><a href="module-lights_Light.html">lights/Light</a></li><li><a href="module-materials_Material.html">materials/Material</a></li><li><a href="module-materials_PhongMaterial.html">materials/PhongMaterial</a></li><li><a href="module-materials_ProceduralMaterial.html">materials/ProceduralMaterial</a></li><li><a href="module-materials_RayMaterial.html">materials/RayMaterial</a></li><li><a href="module-materials_Texture2D.html">materials/Texture2D</a></li><li><a href="module-materials_Texture2DArray.html">materials/Texture2DArray</a></li><li><a href="module-materials_TextureColorRamp.html">materials/TextureColorRamp</a></li><li><a href="module-materials_TexturedMaterial.html">materials/TexturedMaterial</a></li><li><a href="module-materials_common.html">materials/common</a></li><li><a href="module-objects_FloatingObject.html">objects/FloatingObject</a></li><li><a href="module-objects_PhysicsObject.html">objects/PhysicsObject</a></li><li><a href="module-objects_PrimitiveObject.html">objects/PrimitiveObject</a></li><li><a href="module-objects_RayObject.html">objects/RayObject</a></li><li><a href="module-objects_SceneObject.html">objects/SceneObject</a></li><li><a href="module-objects_armature.html">objects/armature</a></li><li><a href="module-objects_compositions.html">objects/compositions</a></li><li><a href="module-objects_helpers.html">objects/helpers</a></li><li><a href="module-objects_loaders_BVHObject.html">objects/loaders/BVHObject</a></li><li><a href="module-objects_loaders_bvhLoader.html">objects/loaders/bvhLoader</a></li><li><a href="module-objects_loaders_objLoader.html">objects/loaders/objLoader</a></li><li><a href="module-objects_primitives.html">objects/primitives</a></li><li><a href="module-renderers.html">renderers</a></li><li><a href="module-renderers_ProceduralMaterialRenderPass.html">renderers/ProceduralMaterialRenderPass</a></li><li><a href="module-renderers_RayRenderPass.html">renderers/RayRenderPass</a></li><li><a href="module-renderers_RenderPass.html">renderers/RenderPass</a></li><li><a href="module-shaders_PhongShaderProgram.html">shaders/PhongShaderProgram</a></li><li><a href="module-shaders_ProceduralMaterialProgram.html">shaders/ProceduralMaterialProgram</a></li><li><a href="module-shaders_Shader.html">shaders/Shader</a></li><li><a href="module-shaders_ShaderProgram.html">shaders/ShaderProgram</a></li><li><a href="module-util_color.html">util/color</a></li><li><a href="module-util_transformations.html">util/transformations</a></li><li><a href="module-util_vec3.html">util/vec3</a></li><li><a href="module-util_vec4.html">util/vec4</a></li></ul><h3>Classes</h3><ul><li><a href="ArmatureBone.html">ArmatureBone</a></li><li><a href="Camera.html">Camera</a></li><li><a href="module.exports.html">exports</a></li><li><a href="module-Scene.html">Scene</a></li><li><a href="module-lights_Light.html">lights/Light</a></li><li><a href="module-materials_Material.html">materials/Material</a></li><li><a href="module-materials_PhongMaterial.html">materials/PhongMaterial</a></li><li><a href="module-materials_ProceduralMaterial.html">materials/ProceduralMaterial</a></li><li><a href="module-materials_RayMaterial.html">materials/RayMaterial</a></li><li><a href="module-materials_Texture2D.html">materials/Texture2D</a></li><li><a href="module-materials_Texture2DArray.html">materials/Texture2DArray</a></li><li><a href="module-materials_TextureColorRamp.html">materials/TextureColorRamp</a></li><li><a href="module-materials_TexturedMaterial.html">materials/TexturedMaterial</a></li><li><a href="module-objects_FloatingObject.html">objects/FloatingObject</a></li><li><a href="module-objects_PhysicsObject.html">objects/PhysicsObject</a></li><li><a href="module-objects_PrimitiveObject.html">objects/PrimitiveObject</a></li><li><a href="module-objects_RayObject.html">objects/RayObject</a></li><li><a href="module-objects_SceneObject.html">objects/SceneObject</a></li><li><a href="module-objects_armature.html">objects/armature</a></li><li><a href="module-objects_loaders_bvhLoader_Joint.html">objects/loaders/bvhLoader/Joint</a></li><li><a href="module-renderers_ProceduralMaterialRenderPass.html">renderers/ProceduralMaterialRenderPass</a></li><li><a href="module-renderers_RayRenderPass.html">renderers/RayRenderPass</a></li><li><a href="module-renderers_RenderPass.html">renderers/RenderPass</a></li><li><a href="module-shaders_PhongShaderProgram.html">shaders/PhongShaderProgram</a></li><li><a href="module-shaders_ProceduralMaterialProgram.html">shaders/ProceduralMaterialProgram</a></li><li><a href="module-shaders_Shader.html">shaders/Shader</a></li><li><a href="module-shaders_ShaderProgram.html">shaders/ShaderProgram</a></li><li><a href="objects_loaders_BVHObject.html">objects/loaders/BVHObject</a></li><li><a href="objects_loaders_BVHObjectRoot.html">objects/loaders/BVHObjectRoot</a></li></ul><h3>Global</h3><ul><li><a href="global.html#appendInputControlRow">appendInputControlRow</a></li><li><a href="global.html#createPanel">createPanel</a></li><li><a href="global.html#getOptionsFromScene">getOptionsFromScene</a></li><li><a href="global.html#makeEditorTabs">makeEditorTabs</a></li><li><a href="global.html#pack">pack</a></li><li><a href="global.html#parseProperties">parseProperties</a></li><li><a href="global.html#parsePropertyType">parsePropertyType</a></li><li><a href="global.html#preview2DTextureArraySources">preview2DTextureArraySources</a></li><li><a href="global.html#previewColorRamp">previewColorRamp</a></li><li><a href="global.html#previewTextureMaterialLayers">previewTextureMaterialLayers</a></li><li><a href="global.html#syncProperties">syncProperties</a></li><li><a href="global.html#titleCase">titleCase</a></li><li><a href="global.html#toString">toString</a></li><li><a href="global.html#updatePropertyHandler">updatePropertyHandler</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Thu Nov 12 2026 14:42:13 GMT-0700 (Mountain Standard Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Tue Nov 24 2026 17:09:02 GMT-0700 (Mountain Standard Time)
 </footer>
 
 <script> prettyPrint(); </script>

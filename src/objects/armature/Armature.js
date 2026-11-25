@@ -158,7 +158,7 @@ export default class Armature {
    * @param {number[]} [options.colorJoint=rgb(255, 255, 255)]
    * @param {string} [options.prefix=""]
    * @param {number} [options.rootJointId=this.rootJointId]
-   * @returns
+   * @returns {SceneObject}
    */
   generateArmatureObject({
     rayObject = false,
@@ -279,7 +279,7 @@ export default class Armature {
   /**
    * Update function that the rootObject calls 
    * @param {Armature} armature the armature structure that the scene object representation references (since context gets rebound to the scene object)
-   * @returns 
+   * @returns {Function}
    */
   _rootObjectUpdater(armature) {
     return function (dt) {

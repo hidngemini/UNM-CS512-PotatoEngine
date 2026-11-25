@@ -248,11 +248,10 @@ export default class RayShaderProgram extends ShaderProgram {
 
   /**
    * initial setup for a buffer
-   * @param {*} binding
-   * @param {*} capacity
-   * @param {*} stride
-   * @param {*} gl
-   * @returns
+   * @param {number} binding
+   * @param {number} capacity
+   * @param {number} stride
+   * @param {WebGL2RenderingContext} gl
    */
   _initBuffer(binding, capacity, stride, gl = this._gl) {
     const size = capacity * stride;

@@ -30,9 +30,20 @@
  * @module objects/RayObject
  */
 
-import { Scene } from "..";
-import { mat4Identity } from "../util/transformations";
-import { vec4distance, scaleVec4, sumVec4 } from "../util/vec4";
+import {
+  TYPE_3TUPLE_SELECTOR,
+  TYPE_DROPDOWN_SELECTOR,
+  TYPE_MATERIAL_SELECTOR,
+  TYPE_PROGRAM_SELECTOR,
+  TYPE_XTUPLE_SELECTOR,
+} from "../controls/sceneEditor";
+import {
+  mat3Transpose,
+  mat4Identity,
+  mat4Inverse,
+  mat4ToMat3,
+  transformPoint,
+} from "../util/transformations";
 import SceneObject from "./SceneObject";
 
 /**
@@ -42,14 +53,75 @@ import SceneObject from "./SceneObject";
  * @alias module:objects/RayObject
  */
 export default class RayObject extends SceneObject {
-  static OBJECT_TYPE_SPHERE = 0;
-  static OBJECT_TYPE_CUBE = 1;
-  static OBJECT_TYPE_CONE = 2;
-  static OBJECT_TYPE_TORUS = 3;
-  static OBJECT_TYPE_CYLINDER = 4;
-  static OBJECT_TYPE_PLANE = 5;
+  static OBJECT_TYPE_SPHERE = 1;
+  static OBJECT_TYPE_CUBE = 2;
+  static OBJECT_TYPE_CONE = 3;
+  static OBJECT_TYPE_TORUS = 4;
+  static OBJECT_TYPE_CYLINDER = 5;
+  static OBJECT_TYPE_PLANE = 6;
+  static OBJECT_TYPE_RECT = 7;
+  static OBJECT_TYPE_INVERTED_SPHERE = -1;
+  static OBJECT_TYPE_INVERTED_CUBE = -2;
+  static OBJECT_TYPE_INVERTED_CONE = -3;
+  static OBJECT_TYPE_INVERTED_TORUS = -4;
+  static OBJECT_TYPE_INVERTED_CYLINDER = -5;
+  static OBJECT_TYPE_INVERTED_PLANE = -6;
+  static OBJECT_TYPE_INVERTED_RECT = -7;
 
-  static OBJECT_BYTE_SIZE = 112; // 16 + 16 + 16 + 64
+  static OBJECT_BYTE_SIZE = 80; // 16 + 16 + 16 + 16+ 16
+  // 64 + 48 ( mat3 padded to vec4 for some reason...)
+  // can bump max objects a bit if we optimize this.
+  static OBJECT_TRANSFORM_BYTE_SIZE = 112;
+
+  static EDITOR_PROPERTIES = [
+    { name: "position", type: TYPE_3TUPLE_SELECTOR },
+    { name: "rotation", type: TYPE_3TUPLE_SELECTOR },
+    { name: "scale", type: TYPE_3TUPLE_SELECTOR },
+    { name: "center", type: TYPE_3TUPLE_SELECTOR },
+    {
+      name: "type",
+      type: TYPE_DROPDOWN_SELECTOR,
+      options: [
+        [RayObject.OBJECT_TYPE_SPHERE, "OBJECT_TYPE_SPHERE"],
+        [RayObject.OBJECT_TYPE_CUBE, "OBJECT_TYPE_CUBE"],
+        [RayObject.OBJECT_TYPE_CONE, "OBJECT_TYPE_CONE"],
+        [RayObject.OBJECT_TYPE_TORUS, "OBJECT_TYPE_TORUS"],
+        [RayObject.OBJECT_TYPE_CYLINDER, "OBJECT_TYPE_CYLINDER"],
+        [RayObject.OBJECT_TYPE_PLANE, "OBJECT_TYPE_PLANE"],
+        [RayObject.OBJECT_TYPE_RECT, "OBJECT_TYPE_RECT"],
+        [RayObject.OBJECT_TYPE_INVERTED_SPHERE, "OBJECT_TYPE_INVERTED_SPHERE"],
+        [RayObject.OBJECT_TYPE_INVERTED_CUBE, "OBJECT_TYPE_INVERTED_CUBE"],
+        [RayObject.OBJECT_TYPE_INVERTED_CONE, "OBJECT_TYPE_INVERTED_CONE"],
+        [RayObject.OBJECT_TYPE_INVERTED_TORUS, "OBJECT_TYPE_INVERTED_TORUS"],
+        [
+          RayObject.OBJECT_TYPE_INVERTED_CYLINDER,
+          "OBJECT_TYPE_INVERTED_CYLINDER",
+        ],
+        [RayObject.OBJECT_TYPE_INVERTED_PLANE, "OBJECT_TYPE_INVERTED_PLANE"],
+        [RayObject.OBJECT_TYPE_INVERTED_RECT, "OBJECT_TYPE_INVERTED_RECT"],
+      ],
+      cast: Number,
+    },
+    { name: "programLabel", type: TYPE_PROGRAM_SELECTOR },
+    { name: "materialLabel", type: TYPE_MATERIAL_SELECTOR },
+    { name: "uvBounds", type: TYPE_XTUPLE_SELECTOR },
+    "uvScale",
+    { name: "lightingCenter", type: TYPE_3TUPLE_SELECTOR },
+    "lightingRadius",
+    "materialIndex",
+    "shouldDraw",
+    "light",
+    "lightPower",
+    "radius",
+    "halfSize",
+    "height",
+    "width",
+    "depth",
+    "radiusMinor",
+    "bulge",
+    "faces",
+    "castShadow",
+  ];
 
   /**
    * Make a new RayObject, a scene object meant to run in the
@@ -78,6 +150,7 @@ export default class RayObject extends SceneObject {
    * @param {number[]} options.position             initial three tuple [x,y,z] position of the object
    * @param {number[]} options.rotation             initial three tuple [x,y,z] rotation of the object
    * @param {number[]} options.scale                initial three tuple [x,y,z] scale of the object
+   * @param {number[]} options.center               three tuple [x,y,z] the center of the object (rotates around this)
    * @param {boolean} options.shouldDraw            if this object should be drawn
    * @param {string} options.programLabel           the program to draw this object with
    * @param {string} options.materialLabel          the material to use with this object
@@ -86,6 +159,8 @@ export default class RayObject extends SceneObject {
    * @param {string} options.lightingCenter         the center of the object to calculate light culling with
    * @param {string} options.lightingRadius         the radius of the object to use when calculate light culling
    * @param {number} [options.materialIndex=-1]
+   * @param {number} [options.uvBounds=[0,0,1,1]]
+   * @param {number} [options.uvScale=1]
    * @param {number} [options.radius=undefined]     the radius used for sphere, cylinder, torus(R), and cone
    * @param {number} [options.halfSize=undefined]   the size used for cubes
    * @param {number} [options.height=undefined]     the height used for cylinders, cones
@@ -93,10 +168,10 @@ export default class RayObject extends SceneObject {
    * @param {number} [options.depth=undefined]      the depth of a plane (-val is inf)
    * @param {number} [options.radiusMinor=undefined]  the radius of the tube of a torus
    * @param {number} [options.bulge=undefined]      the bulge ratio of a cylinder
-   * @param {number} [options.faceted=undefined]    if the object is faceted
-   * @param {number} [options.faces=undefined]      how many faces the faceted object has...
+   * @param {number} [options.faces=0]              how many faces the faceted object has (if 0 we say not faceted)...
    * @param {boolean} [options.light=false]         if the object is a light or not
-   * @param {number} [options.lightPower=0.5]      the power of the light
+   * @param {number} [options.lightPower=0]         the power of the object if its a light
+   * @param {boolean} [options.castShadow=true]     if the object should cast a shadow
    */
   constructor(
     label,
@@ -107,6 +182,7 @@ export default class RayObject extends SceneObject {
       position = [0, 0, 0],
       rotation = [0, 0, 0],
       scale = [1, 1, 1],
+      center = [0, 0, 0],
       shouldDraw = true,
       programLabel = undefined,
       materialLabel = undefined,
@@ -119,6 +195,8 @@ export default class RayObject extends SceneObject {
       light = false,
       lightPower = 0.5,
       materialIndex = -1,
+      uvBounds = [0, 0, 1, 1],
+      uvScale = 1,
 
       // ray object geometry
       radius = undefined,
@@ -128,8 +206,8 @@ export default class RayObject extends SceneObject {
       depth = undefined,
       radiusMinor = undefined,
       bulge = undefined,
-      faceted = undefined,
-      faces = undefined,
+      faces = 5,
+      castShadow = true,
     } = {},
   ) {
     super(label, {
@@ -146,10 +224,13 @@ export default class RayObject extends SceneObject {
       passes,
     });
 
+    this.center = center;
+
     // TODO update this based on the label if it exists
     this.materialIndex = materialIndex;
     this.light = light;
-    this.lightPower = lightPower
+    this.lightPower = lightPower;
+    this.castShadow = castShadow;
 
     this.radius = radius;
     this.halfSize = halfSize;
@@ -158,10 +239,69 @@ export default class RayObject extends SceneObject {
     this.depth = depth;
     this.radiusMinor = radiusMinor;
     this.bulge = bulge;
-    this.faceted = faceted;
     this.faces = faces;
+    this.uvBounds = uvBounds;
+    this.uvScale = uvScale;
 
     this.type = type;
+  }
+
+  /**
+   * roughly calculate the hit radius of the object
+   * @returns {number}
+   */
+  getRadius() {
+    let radius;
+    switch (this.type) {
+      case RayObject.OBJECT_TYPE_SPHERE:
+      case RayObject.OBJECT_TYPE_INVERTED_SPHERE:
+        radius = this.radius;
+        break;
+      case RayObject.OBJECT_TYPE_CUBE:
+      case RayObject.OBJECT_TYPE_INVERTED_CUBE:
+        // (sqrt 2)
+        radius = this.halfSize * 1.414213 * 1.5;
+        break;
+      case RayObject.OBJECT_TYPE_CONE:
+      case RayObject.OBJECT_TYPE_INVERTED_CONE:
+        radius = Math.max(this.radius, this.height);
+        break;
+      case RayObject.OBJECT_TYPE_TORUS:
+      case RayObject.OBJECT_TYPE_INVERTED_TORUS:
+        radius = this.radius + this.radiusMinor;
+        break;
+      case RayObject.OBJECT_TYPE_CYLINDER:
+      case RayObject.OBJECT_TYPE_INVERTED_CYLINDER:
+        radius = Math.max(this.radius, this.height);
+        break;
+      case RayObject.OBJECT_TYPE_PLANE:
+      case RayObject.OBJECT_TYPE_INVERTED_PLANE:
+        if (this.width &lt; 0 || this.depth &lt; 0) {
+          radius = 100;
+        } else {
+          // (sqrt 2)
+          radius = Math.max(this.width, this.depth) * 1.414213 * 1.5;
+        }
+      case RayObject.OBJECT_TYPE_RECT:
+      case RayObject.OBJECT_TYPE_INVERTED_RECT:
+        radius = Math.max(this.width, this.depth, this.height) * 1.414213;
+    }
+    return radius * Math.max(...this.scale);
+  }
+
+  /**
+   * Check if the object is only being transformed so we can avoid using the mat4 transform
+   * to move ray into object space and normal into world space, and instead use the js calculated center
+   */
+  isTranslateOnly() {
+    return (
+      this.rotation[0] == 0 &amp;&amp;
+      this.rotation[1] == 0 &amp;&amp;
+      this.rotation[2] == 0 &amp;&amp;
+      this.scale[0] == 1 &amp;&amp;
+      this.scale[1] == 1 &amp;&amp;
+      this.scale[2] == 1
+    );
   }
 
   /**
@@ -173,7 +313,7 @@ export default class RayObject extends SceneObject {
    *     ivec4 meta;         // x    => type;    y => material?; z=> ____ ; w => ____ ;
    *     vec4 centerRadius;  // xyz  => center;  w => cone, sphere, cyl: r, cube: half-size, torus: R, plane: width
    *     vec4 options;       // x    => cyl, cone: height, torus:r, plane:depth;     y=> cyl: bulge
-   *     mat4 transform;     // overall transformation to apply
+   *     vec4 testCenterRadius;
    *   };
    * &lt;/pre>
    *
@@ -184,7 +324,6 @@ export default class RayObject extends SceneObject {
    * @param {int} offset offset bytes this object starts at
    */
   packData(view, offset) {
-    const center = this.position;
     let mat = this.M;
 
     if (!this.M || mat.length != 16) {
@@ -197,22 +336,34 @@ export default class RayObject extends SceneObject {
     // ivec4 meta (offset 0)
     view.setInt32(0 + offset, this.type, true);
     view.setInt32(4 + offset, this.materialIndex, true);
-    view.setInt32(8 + offset, this.faceted ? 1 : 0, true);
-    view.setInt32(12 + offset, this.faces ?? 0, true);
+    view.setInt32(
+      8 + offset,
+      this.castShadow ? this.faces : -1 * this.faces,
+      true,
+    );
+    view.setInt32(12 + offset, this.isTranslateOnly() ? 1 : 0, true);
 
     // vec4 centerRadius (offset 16)
     let size = 0;
     switch (this.type) {
       case RayObject.OBJECT_TYPE_SPHERE:
+      case RayObject.OBJECT_TYPE_INVERTED_SPHERE:
       case RayObject.OBJECT_TYPE_CONE:
+      case RayObject.OBJECT_TYPE_INVERTED_CONE:
       case RayObject.OBJECT_TYPE_CYLINDER:
+      case RayObject.OBJECT_TYPE_INVERTED_CYLINDER:
       case RayObject.OBJECT_TYPE_TORUS:
+      case RayObject.OBJECT_TYPE_INVERTED_TORUS:
         size = this.radius;
         break;
       case RayObject.OBJECT_TYPE_CUBE:
+      case RayObject.OBJECT_TYPE_INVERTED_CUBE:
         size = this.halfSize;
         break;
       case RayObject.OBJECT_TYPE_PLANE:
+      case RayObject.OBJECT_TYPE_INVERTED_PLANE:
+      case RayObject.OBJECT_TYPE_RECT:
+      case RayObject.OBJECT_TYPE_INVERTED_RECT:
         size = this.width;
         break;
       default:
@@ -222,29 +373,38 @@ export default class RayObject extends SceneObject {
     // NOTE: this.M should already contain the position transform
     //       but we ignore it for now since its not parsed in
     //       the fragment shader
-    view.setFloat32(16 + offset, center[0], true);
-    view.setFloat32(20 + offset, center[1], true);
-    view.setFloat32(24 + offset, center[2], true);
+    view.setFloat32(16 + offset, this.center[0], true);
+    view.setFloat32(20 + offset, this.center[1], true);
+    view.setFloat32(24 + offset, this.center[2], true);
     view.setFloat32(28 + offset, size, true);
 
     // vec4 options (offset 32)
     let options = { x: 0, y: 0, z: 0, w: 0 };
     switch (this.type) {
       case RayObject.OBJECT_TYPE_CYLINDER:
+      case RayObject.OBJECT_TYPE_INVERTED_CYLINDER:
         options.y = this.bulge ?? 0;
       case RayObject.OBJECT_TYPE_CONE:
+      case RayObject.OBJECT_TYPE_INVERTED_CONE:
         options.x = this.height ?? 1;
         break;
       case RayObject.OBJECT_TYPE_TORUS:
+      case RayObject.OBJECT_TYPE_INVERTED_TORUS:
         options.x = this.radiusMinor ?? 0.25;
         break;
+      case RayObject.OBJECT_TYPE_RECT:
+      case RayObject.OBJECT_TYPE_INVERTED_RECT:
+        options.y = this.height ?? 0;
       case RayObject.OBJECT_TYPE_PLANE:
+      case RayObject.OBJECT_TYPE_INVERTED_PLANE:
         options.x = this.depth ?? 0;
         break;
     }
 
-    if(this.light){
+    if (this.light) {
       options.w = this.lightPower;
+    } else {
+      options.w = this.uvScale;
     }
 
     view.setFloat32(32 + offset, options.x, true);
@@ -252,9 +412,50 @@ export default class RayObject extends SceneObject {
     view.setFloat32(40 + offset, options.z, true);
     view.setFloat32(44 + offset, options.w, true);
 
-    // mat4 transform (offset 48 -> 48 + 64 = 112)
+    const worldCenter = transformPoint(this.center, mat);
+
+    view.setFloat32(48 + offset, worldCenter[0], true);
+    view.setFloat32(52 + offset, worldCenter[1], true);
+    view.setFloat32(56 + offset, worldCenter[2], true);
+    view.setFloat32(60 + offset, this.getRadius(), true);
+
+    for (let i = 0; i &lt; 4; i++) {
+      view.setFloat32(64 + i * 4 + offset, this.uvBounds[i], true);
+    }
+  }
+
+  /**
+   * Pack the transformation cache data into the view provided
+   * @param {*} view
+   * @param {number} offset
+   */
+  packTransformData(view, offset) {
+    let mat = this.M;
+
+    if (!this.M || mat.length != 16) {
+      console.warn(
+        `RayObject ${this.label}: this.M must be defined as a 16 element array; defaulting to identity`,
+      );
+      mat = mat4Identity();
+    }
+
+    const inverse = mat4Inverse(mat);
+    const inverse3 = mat3Transpose(mat4ToMat3(inverse));
+
+    // mat4 inverse (offset 0 -> 64)
     for (let i = 0; i &lt; 16; i++) {
-      view.setFloat32(48 + i * 4 + offset, mat[i], true);
+      view.setFloat32(i * 4 + offset, inverse[i], true);
+    }
+
+    for (let col = 0; col &lt; 3; col++) {
+      for (let row = 0; row &lt; 3; row++) {
+        view.setFloat32(
+          offset + 64 + col * 16 + row * 4,
+          inverse3[col * 3 + row],
+          true,
+        );
+      }
+      view.setFloat32(offset + 64 + col * 16 + 12, 0, true); // padding
     }
   }
 
@@ -291,13 +492,13 @@ export default class RayObject extends SceneObject {
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-Scene.html">Scene</a></li><li><a href="module-controls_basic.html">controls/basic</a></li><li><a href="module-controls_flight.html">controls/flight</a></li><li><a href="module-lights_Light.html">lights/Light</a></li><li><a href="module-materials_Material.html">materials/Material</a></li><li><a href="module-materials_PhongMaterial.html">materials/PhongMaterial</a></li><li><a href="module-materials_RayMaterial.html">materials/RayMaterial</a></li><li><a href="module-materials_Texture2D.html">materials/Texture2D</a></li><li><a href="module-materials_Texture2DArray.html">materials/Texture2DArray</a></li><li><a href="module-materials_TextureColorRamp.html">materials/TextureColorRamp</a></li><li><a href="module-materials_TexturedMaterial.html">materials/TexturedMaterial</a></li><li><a href="module-materials_common.html">materials/common</a></li><li><a href="module-objects_FloatingObject.html">objects/FloatingObject</a></li><li><a href="module-objects_PhysicsObject.html">objects/PhysicsObject</a></li><li><a href="module-objects_PrimitiveObject.html">objects/PrimitiveObject</a></li><li><a href="module-objects_RayObject.html">objects/RayObject</a></li><li><a href="module-objects_SceneObject.html">objects/SceneObject</a></li><li><a href="module-objects_armature.html">objects/armature</a></li><li><a href="module-objects_compositions.html">objects/compositions</a></li><li><a href="module-objects_helpers.html">objects/helpers</a></li><li><a href="module-objects_loaders_BVHObject.html">objects/loaders/BVHObject</a></li><li><a href="module-objects_loaders_bvhLoader.html">objects/loaders/bvhLoader</a></li><li><a href="module-objects_loaders_objLoader.html">objects/loaders/objLoader</a></li><li><a href="module-objects_primitives.html">objects/primitives</a></li><li><a href="module-renderers.html">renderers</a></li><li><a href="module-renderers_RayRenderPass.html">renderers/RayRenderPass</a></li><li><a href="module-renderers_RenderPass.html">renderers/RenderPass</a></li><li><a href="module-shaders_PhongShaderProgram.html">shaders/PhongShaderProgram</a></li><li><a href="module-shaders_Shader.html">shaders/Shader</a></li><li><a href="module-shaders_ShaderProgram.html">shaders/ShaderProgram</a></li><li><a href="module-util_color.html">util/color</a></li><li><a href="module-util_transformations.html">util/transformations</a></li><li><a href="module-util_vec3.html">util/vec3</a></li><li><a href="module-util_vec4.html">util/vec4</a></li></ul><h3>Classes</h3><ul><li><a href="ArmatureBone.html">ArmatureBone</a></li><li><a href="Camera.html">Camera</a></li><li><a href="module.exports.html">exports</a></li><li><a href="module-Scene.html">Scene</a></li><li><a href="module-lights_Light.html">lights/Light</a></li><li><a href="module-materials_Material.html">materials/Material</a></li><li><a href="module-materials_PhongMaterial.html">materials/PhongMaterial</a></li><li><a href="module-materials_RayMaterial.html">materials/RayMaterial</a></li><li><a href="module-materials_Texture2D.html">materials/Texture2D</a></li><li><a href="module-materials_Texture2DArray.html">materials/Texture2DArray</a></li><li><a href="module-materials_TextureColorRamp.html">materials/TextureColorRamp</a></li><li><a href="module-materials_TexturedMaterial.html">materials/TexturedMaterial</a></li><li><a href="module-objects_FloatingObject.html">objects/FloatingObject</a></li><li><a href="module-objects_PhysicsObject.html">objects/PhysicsObject</a></li><li><a href="module-objects_PrimitiveObject.html">objects/PrimitiveObject</a></li><li><a href="module-objects_RayObject.html">objects/RayObject</a></li><li><a href="module-objects_SceneObject.html">objects/SceneObject</a></li><li><a href="module-objects_armature.html">objects/armature</a></li><li><a href="module-objects_armature.Armature.html">Armature</a></li><li><a href="module-objects_loaders_bvhLoader_Joint.html">objects/loaders/bvhLoader/Joint</a></li><li><a href="module-renderers_RayRenderPass.html">renderers/RayRenderPass</a></li><li><a href="module-renderers_RenderPass.html">renderers/RenderPass</a></li><li><a href="module-shaders_PhongShaderProgram.html">shaders/PhongShaderProgram</a></li><li><a href="module-shaders_Shader.html">shaders/Shader</a></li><li><a href="module-shaders_ShaderProgram.html">shaders/ShaderProgram</a></li><li><a href="objects_loaders_BVHObject.html">objects/loaders/BVHObject</a></li><li><a href="objects_loaders_BVHObjectRoot.html">objects/loaders/BVHObjectRoot</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-Scene.html">Scene</a></li><li><a href="module-controls_basic.html">controls/basic</a></li><li><a href="module-controls_flight.html">controls/flight</a></li><li><a href="module-lights_Light.html">lights/Light</a></li><li><a href="module-materials_Material.html">materials/Material</a></li><li><a href="module-materials_PhongMaterial.html">materials/PhongMaterial</a></li><li><a href="module-materials_ProceduralMaterial.html">materials/ProceduralMaterial</a></li><li><a href="module-materials_RayMaterial.html">materials/RayMaterial</a></li><li><a href="module-materials_Texture2D.html">materials/Texture2D</a></li><li><a href="module-materials_Texture2DArray.html">materials/Texture2DArray</a></li><li><a href="module-materials_TextureColorRamp.html">materials/TextureColorRamp</a></li><li><a href="module-materials_TexturedMaterial.html">materials/TexturedMaterial</a></li><li><a href="module-materials_common.html">materials/common</a></li><li><a href="module-objects_FloatingObject.html">objects/FloatingObject</a></li><li><a href="module-objects_PhysicsObject.html">objects/PhysicsObject</a></li><li><a href="module-objects_PrimitiveObject.html">objects/PrimitiveObject</a></li><li><a href="module-objects_RayObject.html">objects/RayObject</a></li><li><a href="module-objects_SceneObject.html">objects/SceneObject</a></li><li><a href="module-objects_armature.html">objects/armature</a></li><li><a href="module-objects_compositions.html">objects/compositions</a></li><li><a href="module-objects_helpers.html">objects/helpers</a></li><li><a href="module-objects_loaders_BVHObject.html">objects/loaders/BVHObject</a></li><li><a href="module-objects_loaders_bvhLoader.html">objects/loaders/bvhLoader</a></li><li><a href="module-objects_loaders_objLoader.html">objects/loaders/objLoader</a></li><li><a href="module-objects_primitives.html">objects/primitives</a></li><li><a href="module-renderers.html">renderers</a></li><li><a href="module-renderers_ProceduralMaterialRenderPass.html">renderers/ProceduralMaterialRenderPass</a></li><li><a href="module-renderers_RayRenderPass.html">renderers/RayRenderPass</a></li><li><a href="module-renderers_RenderPass.html">renderers/RenderPass</a></li><li><a href="module-shaders_PhongShaderProgram.html">shaders/PhongShaderProgram</a></li><li><a href="module-shaders_ProceduralMaterialProgram.html">shaders/ProceduralMaterialProgram</a></li><li><a href="module-shaders_Shader.html">shaders/Shader</a></li><li><a href="module-shaders_ShaderProgram.html">shaders/ShaderProgram</a></li><li><a href="module-util_color.html">util/color</a></li><li><a href="module-util_transformations.html">util/transformations</a></li><li><a href="module-util_vec3.html">util/vec3</a></li><li><a href="module-util_vec4.html">util/vec4</a></li></ul><h3>Classes</h3><ul><li><a href="ArmatureBone.html">ArmatureBone</a></li><li><a href="Camera.html">Camera</a></li><li><a href="module.exports.html">exports</a></li><li><a href="module-Scene.html">Scene</a></li><li><a href="module-lights_Light.html">lights/Light</a></li><li><a href="module-materials_Material.html">materials/Material</a></li><li><a href="module-materials_PhongMaterial.html">materials/PhongMaterial</a></li><li><a href="module-materials_ProceduralMaterial.html">materials/ProceduralMaterial</a></li><li><a href="module-materials_RayMaterial.html">materials/RayMaterial</a></li><li><a href="module-materials_Texture2D.html">materials/Texture2D</a></li><li><a href="module-materials_Texture2DArray.html">materials/Texture2DArray</a></li><li><a href="module-materials_TextureColorRamp.html">materials/TextureColorRamp</a></li><li><a href="module-materials_TexturedMaterial.html">materials/TexturedMaterial</a></li><li><a href="module-objects_FloatingObject.html">objects/FloatingObject</a></li><li><a href="module-objects_PhysicsObject.html">objects/PhysicsObject</a></li><li><a href="module-objects_PrimitiveObject.html">objects/PrimitiveObject</a></li><li><a href="module-objects_RayObject.html">objects/RayObject</a></li><li><a href="module-objects_SceneObject.html">objects/SceneObject</a></li><li><a href="module-objects_armature.html">objects/armature</a></li><li><a href="module-objects_loaders_bvhLoader_Joint.html">objects/loaders/bvhLoader/Joint</a></li><li><a href="module-renderers_ProceduralMaterialRenderPass.html">renderers/ProceduralMaterialRenderPass</a></li><li><a href="module-renderers_RayRenderPass.html">renderers/RayRenderPass</a></li><li><a href="module-renderers_RenderPass.html">renderers/RenderPass</a></li><li><a href="module-shaders_PhongShaderProgram.html">shaders/PhongShaderProgram</a></li><li><a href="module-shaders_ProceduralMaterialProgram.html">shaders/ProceduralMaterialProgram</a></li><li><a href="module-shaders_Shader.html">shaders/Shader</a></li><li><a href="module-shaders_ShaderProgram.html">shaders/ShaderProgram</a></li><li><a href="objects_loaders_BVHObject.html">objects/loaders/BVHObject</a></li><li><a href="objects_loaders_BVHObjectRoot.html">objects/loaders/BVHObjectRoot</a></li></ul><h3>Global</h3><ul><li><a href="global.html#appendInputControlRow">appendInputControlRow</a></li><li><a href="global.html#createPanel">createPanel</a></li><li><a href="global.html#getOptionsFromScene">getOptionsFromScene</a></li><li><a href="global.html#makeEditorTabs">makeEditorTabs</a></li><li><a href="global.html#pack">pack</a></li><li><a href="global.html#parseProperties">parseProperties</a></li><li><a href="global.html#parsePropertyType">parsePropertyType</a></li><li><a href="global.html#preview2DTextureArraySources">preview2DTextureArraySources</a></li><li><a href="global.html#previewColorRamp">previewColorRamp</a></li><li><a href="global.html#previewTextureMaterialLayers">previewTextureMaterialLayers</a></li><li><a href="global.html#syncProperties">syncProperties</a></li><li><a href="global.html#titleCase">titleCase</a></li><li><a href="global.html#toString">toString</a></li><li><a href="global.html#updatePropertyHandler">updatePropertyHandler</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Thu Nov 12 2026 14:42:13 GMT-0700 (Mountain Standard Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.5</a> on Tue Nov 24 2026 17:09:02 GMT-0700 (Mountain Standard Time)
 </footer>
 
 <script> prettyPrint(); </script>

@@ -45,10 +45,10 @@ let doSync = false;
  * Generate a function to update the property noted in the target
  * object...
  * @param {*} target
- * @param {*} property
- * @param {*} secondaryProperty
- * @param {*} cast casting function
- * @returns
+ * @param {string} property
+ * @param {string} secondaryProperty
+ * @param {Function | undefined} cast casting function
+ * @returns {function}
  */
 function updatePropertyHandler(
   target,
@@ -490,7 +490,7 @@ export function makeEditorTabs(
    * @param {string} id event id
    * @param {string} label human label
    * @param {function} render callback function to use to render the content in
-   * @returns
+   * @returns {HTMLElement}
    */
   function addTab(id, label, render = null) {
     const button = document.createElement("button");
@@ -547,7 +547,6 @@ export function makeEditorTabs(
    * @param {string} id event id
    * @param {string} label  human label
    * @param {*} collection  the collection to read data from (map from scene.something)
-   * @returns
    */
   function addSelectorTab(id, label, collection) {
     const pane = addTab(id, label);
@@ -690,7 +689,7 @@ function previewTextureMaterialLayers(textures, scene) {
 /**
  * Generate a div with gradient for a preview of a color ramp
  * @param {} texture
- * @returns
+ * @returns {HTMLElement}
  */
 function previewColorRamp(texture) {
   const prev = document.createElement("div");
@@ -701,6 +700,7 @@ function previewColorRamp(texture) {
 /**
  * Preview the set of sources in a 2d texture array
  * @param {Map} sources
+ * @returns {HTMLElement}
  */
 function preview2DTextureArraySources(sources) {
   const table = document.createElement("table");

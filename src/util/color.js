@@ -60,7 +60,7 @@ export function hex(hexcode) {
 /**
  * Convert webgl rgb value into hex string
  * @param {number[]} rgb 
- * @returns 
+ * @returns {string}
  */
 export function rgbToHex(rgb) {
   const toHex = (c) => {

@@ -587,7 +587,7 @@ export default class Scene {
    * @param {boolean} options.upload if we are uploading a TexImageSource instead of image url
    * @param {boolean} options.load if we want to start load function on the texture
    * @param {string | TexImageSource} options.source if you want to use a source
-   * @param {(string | TexImageSource)[]} options.sources if you want to load / upload sources to 2d texture
+   * @param {(string[] | TexImageSource[])} options.sources if you want to load / upload sources to 2d texture
    */
   addTexture(
     label,

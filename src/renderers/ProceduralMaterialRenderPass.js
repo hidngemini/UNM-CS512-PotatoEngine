@@ -81,7 +81,7 @@ export default class ProceduralMaterialRenderPass extends RenderPass {
    * @param {Scene} scene
    * @param {number} options.width
    * @param {number} options.height
-   * @returns
+   * @returns {Texture2DArray}
    */
   static add(
     scene,
