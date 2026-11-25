@@ -1,10 +1,6 @@
 import Scene from "../../src/Scene";
 import RayShaderProgram from "../../src/shaders/RayShaderProgram";
 import controls from "../../src/controls";
-import {
-  addRayTracingRenderPass,
-  RENDER_PASS_RAY,
-} from "../../src/renderers/raytracing";
 import flight from "../../src/controls/flight";
 import { RayObject } from "../../src/objects";
 import {
@@ -15,7 +11,10 @@ import {
   Texture2DArray,
 } from "../../src/materials";
 import { makeEditorTabs, syncProperties } from "../../src/controls/sceneEditor";
-import { ProceduralMaterialRenderPass } from "../../src/renderers";
+import {
+  ProceduralMaterialRenderPass,
+  RayRenderPass,
+} from "../../src/renderers";
 import ProceduralMaterialProgram from "../../src/shaders/ProceduralMaterialProgram";
 
 const SHADER_PROGRAM_RAY = "ray";
@@ -25,6 +24,7 @@ const scene = new Scene("glcanvas");
 // scene.camera.move(0, 0, -25);
 scene.rotationX += Math.PI / 6;
 // scene.camera.fov
+scene.defaultPasses = [RayRenderPass.RENDER_PASS_RAY];
 
 const rayProgram = scene.createProgram(
   SHADER_PROGRAM_RAY,
@@ -187,40 +187,13 @@ function initSceneObjects() {
     materialIndex: -2,
   });
 
-  // lightSphere2 = new RayObject(
-  //   "testLightSphere2",
-  //   RayObject.OBJECT_TYPE_SPHERE,
-  //   {
-  //     radius: 0.1,
-  //     light: true,
-  //     position: [0, 2, -10],
-  //   },
-  // );
-
-  scene.addObject(sphere, SHADER_PROGRAM_RAY, undefined, {
-    passes: [RENDER_PASS_RAY],
-  });
-  scene.addObject(sphere2, SHADER_PROGRAM_RAY, undefined, {
-    passes: [RENDER_PASS_RAY],
-  });
-  scene.addObject(cube, SHADER_PROGRAM_RAY, undefined, {
-    passes: [RENDER_PASS_RAY],
-  });
-  scene.addObject(plane, SHADER_PROGRAM_RAY, undefined, {
-    passes: [RENDER_PASS_RAY],
-  });
-  scene.addObject(lightSphere, SHADER_PROGRAM_RAY, undefined, {
-    passes: [RENDER_PASS_RAY],
-  });
-  // scene.addObject(lightSphere2, SHADER_PROGRAM_RAY, undefined, {
-  //   passes: [RENDER_PASS_RAY],
-  // });
-  scene.addObject(cube2, SHADER_PROGRAM_RAY, undefined, {
-    passes: [RENDER_PASS_RAY],
-  });
-  scene.addObject(cube3, SHADER_PROGRAM_RAY, undefined, {
-    passes: [RENDER_PASS_RAY],
-  });
+  scene.addObject(sphere, SHADER_PROGRAM_RAY);
+  scene.addObject(sphere2, SHADER_PROGRAM_RAY);
+  scene.addObject(cube, SHADER_PROGRAM_RAY);
+  scene.addObject(plane, SHADER_PROGRAM_RAY);
+  scene.addObject(lightSphere, SHADER_PROGRAM_RAY);
+  scene.addObject(cube2, SHADER_PROGRAM_RAY);
+  scene.addObject(cube3, SHADER_PROGRAM_RAY);
 }
 
 flight.setupMouseControls(scene, {
@@ -236,12 +209,6 @@ function updateScene(dt) {
 
   sphere.position[0] = 5 * Math.sin(scene.time / 500);
   sphere.position[1] = 5 * -Math.cos(scene.time / 500);
-
-  // lightSphere2.position = [
-  //   -scene.camera.x,
-  //   -scene.camera.y - 1,
-  //   -scene.camera.z,
-  // ];
 }
 
 /**
@@ -286,7 +253,7 @@ scene.setUpdateCB(updateScene);
  * - start animation loop
  */
 async function main() {
-  addRayTracingRenderPass(scene, SHADER_PROGRAM_RAY);
+  RayRenderPass.add(scene, SHADER_PROGRAM_RAY);
   addMaterials();
   addTextures();
 
@@ -296,11 +263,6 @@ async function main() {
   setupInputControls();
 
   makeEditorTabs(scene);
-
-  // setInterval(() => {
-  //   syncProperties();
-  //   scene.render();
-  // }, 30);
 
   requestAnimationFrame(scene.render);
 }

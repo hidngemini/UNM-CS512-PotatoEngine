@@ -15,8 +15,8 @@ import {
 import RenderPass from "./renderers/RenderPass";
 import { renderers } from ".";
 import { Texture2D, Material, Texture2DArray } from "./materials";
-import { RENDER_PASS_RAY } from "./renderers";
 import { TYPE_COLOR_SELECTOR, TYPE_READ_ONLY } from "./controls/sceneEditor";
+import { RayRenderPass } from "./renderers";
 
 /**
  * Overall state management for a scene
@@ -81,7 +81,6 @@ export default class Scene {
     this.fps = 0;
     this._fpsElapsed = 0;
     this._fpsFrames = 0;
-
 
     // use to check if we actually need to switch shaders / materials
     this.activeProgram = undefined;
@@ -394,9 +393,9 @@ export default class Scene {
   addMaterial(material, program) {
     material.programLabel = program;
     this.materials.set(material.label, material);
-    if (program == RENDER_PASS_RAY) {
+    if (program == RayRenderPass.RENDER_PASS_RAY) {
       // TODO check if have the ray renderpass at all lol
-      this.getRenderPass(RENDER_PASS_RAY).addMaterial(material);
+      this.getRenderPass(RayRenderPass.RENDER_PASS_RAY).addMaterial(material);
     }
   }
 
@@ -803,9 +802,8 @@ export default class Scene {
     // override if the shader program sets its own matrices
     let matOverride = pass.matrices ? pass.matrices : matrices;
     if (pass.objIndependent) {
-
-      // allow no general shader program, this is used in the procedural 
-      // pass that chooses programs based on the material.programLabels 
+      // allow no general shader program, this is used in the procedural
+      // pass that chooses programs based on the material.programLabels
       let shaderProgram;
       if (pass.programLabel !== undefined) {
         shaderProgram = this.getProgram(pass.programLabel);

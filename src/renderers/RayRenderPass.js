@@ -2,9 +2,12 @@
  * @module renderers/RayRenderPass
  */
 
+import { Scene } from "..";
+import { ShaderProgram } from "../shaders";
 import { RayMaterial } from "../materials";
 import RayObject from "../objects/RayObject";
 import RenderPass from "./RenderPass";
+import RayShaderProgram from "../shaders/RayShaderProgram";
 
 /**
  * Wrapper class to help define render order and different types of objects
@@ -18,6 +21,7 @@ import RenderPass from "./RenderPass";
  * @alias module:renderers/RayRenderPass
  */
 export default class RayRenderPass extends RenderPass {
+  static RENDER_PASS_RAY = "ray";
   /**
    * Create a render pass
    * @param {string} label
@@ -47,6 +51,7 @@ export default class RayRenderPass extends RenderPass {
       programLabel = undefined,
     } = {},
   ) {
+    let pass;
     super(label, {
       framebuffer,
       viewport,
@@ -54,11 +59,17 @@ export default class RayRenderPass extends RenderPass {
       clearColor,
       setup,
       cleanup,
-      updateUniforms,
+      updateUniforms: (gl, program, scene) => {
+        pass._updateUniforms(gl, program, scene);
+        if (!!updateUniforms) {
+          updateUniforms(gl, program, scene);
+        }
+      },
       sort,
       objIndependent,
       programLabel,
     });
+    pass = this;
 
     // add lights set
     this.lights = new Set();
@@ -140,5 +151,107 @@ export default class RayRenderPass extends RenderPass {
    */
   removeTexture(texture) {
     this.textures.delete(texture);
+  }
+
+  /**
+   * Add a basic ray tracing render pass
+   * which primarily uses RayObjects in its scene.
+   * @param {Scene} scene
+   * @param {string} programLabel the label of the ray tracing program
+   */
+  static add(scene, programLabel = RayRenderPass.RENDER_PASS_RAY) {
+    const rayPass = new RayRenderPass(RayRenderPass.RENDER_PASS_RAY, {
+      clearMask: scene.gl
+        ? scene.gl.COLOR_BUFFER_BIT | scene.gl.DEPTH_BUFFER_BIT
+        : 0,
+      objIndependent: true,
+      programLabel,
+    });
+
+    scene.addRenderPass(rayPass);
+  }
+
+  /**
+   * Update the uniforms relevant to the pass
+   * which are linked to the scene directly
+   * - in our case here probably the camera uniforms count
+   * - data texture information
+   * @param {WebGL2RenderingContext} gl
+   * @param {ShaderProgram} shaderProgram
+   * @param {Scene} scene
+   */
+  _updateUniforms(gl, shaderProgram, scene) {
+    if (!(shaderProgram instanceof RayShaderProgram)) {
+      return;
+    }
+
+    shaderProgram.uniforms.u_target = new Float32Array([
+      -scene.camera.x,
+      -scene.camera.y,
+      -scene.camera.z,
+    ]);
+
+    shaderProgram.uniforms.u_cameraOrbit = new Float32Array([
+      scene.camera.pitch,
+      scene.camera.yaw,
+    ]);
+
+    shaderProgram.uniforms.u_fov = -scene.camera.fov;
+
+    const seenTextures = new Set();
+    for (const mat of this.materials) {
+      const tl = mat.textureMapLabel;
+
+      if (tl && !seenTextures.has(tl)) {
+        seenTextures.add(tl);
+        const tex = scene.getTexture(tl);
+        tex.bind(seenTextures.size - 1, scene.gl);
+        gl.uniform1ui(
+          shaderProgram.locs[`u_textureLayerCount${seenTextures.size - 1}`],
+          tex.layerCount,
+        );
+      }
+    }
+
+    gl.uniform1i(shaderProgram.locs.u_objectData, seenTextures.size);
+    gl.uniform1i(
+      shaderProgram.locs.u_objectDataWidth,
+      shaderProgram.objectDataTexture.width,
+    );
+
+    gl.uniform1i(shaderProgram.locs.u_lightData, seenTextures.size + 1);
+    gl.uniform1i(
+      shaderProgram.locs.u_lightDataWidth,
+      shaderProgram.lightDataTexture.width,
+    );
+
+    shaderProgram.objectDataTexture.uploadObjects(
+      gl,
+      [...this.objects],
+      this.materialMap,
+      seenTextures.size,
+      shaderProgram.locs.u_objectData,
+      shaderProgram.locs.u_objectCount,
+    );
+
+    shaderProgram.lightDataTexture.uploadObjects(
+      gl,
+      [...this.lights],
+      this.materialMap,
+      seenTextures.size + 1,
+      shaderProgram.locs.u_lightData,
+      shaderProgram.locs.u_lightCount,
+    );
+
+    shaderProgram.materialDataTexture.uploadMaterials(
+      gl,
+      this.materials,
+      seenTextures.size + 2,
+      shaderProgram.locs.u_materialData,
+      shaderProgram.locs.u_materialCount,
+      shaderProgram.locs.u_materialDataWidth,
+    );
+
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 }
