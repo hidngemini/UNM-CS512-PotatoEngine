@@ -4,11 +4,9 @@
 
 import { Scene } from "..";
 import { RayMaterial } from "../materials";
-import { RayObject } from "../objects";
 import { ShaderProgram } from "../shaders";
 import RayShaderProgram from "../shaders/RayShaderProgram";
 import RayRenderPass from "./RayRenderPass";
-import RenderPass from "./RenderPass";
 
 // TODO a lot of this can probably just
 // be moved into the ray render pass...
@@ -79,7 +77,7 @@ function updateUniforms(gl, shaderProgram, scene) {
     if (tl && !seenTextures.has(tl)) {
       seenTextures.add(tl);
       const tex = scene.getTexture(tl);
-      tex.bind(seenTextures.size-1, scene.gl);
+      tex.bind(seenTextures.size - 1, scene.gl);
       gl.uniform1ui(
         shaderProgram.locs[`u_textureLayerCount${seenTextures.size - 1}`],
         tex.layerCount,
@@ -87,8 +85,35 @@ function updateUniforms(gl, shaderProgram, scene) {
     }
   }
 
-  packObjects(gl, [...this.objects], shaderProgram, this.materialMap);
-  packLights(gl, [...this.lights], shaderProgram, this.materialMap);
+  gl.uniform1i(shaderProgram.locs.u_objectData, 2);
+  gl.uniform1i(
+    shaderProgram.locs.u_objectDataWidth,
+    shaderProgram.objectDataTexture.width,
+  );
+
+  gl.uniform1i(shaderProgram.locs.u_lightData, 3);
+  gl.uniform1i(
+    shaderProgram.locs.u_lightDataWidth,
+    shaderProgram.lightDataTexture.width,
+  );
+
+  shaderProgram.objectDataTexture.uploadObjects(
+    gl,
+    [...this.objects],
+    this.materialMap,
+    2,
+    shaderProgram.locs.u_objectData,
+    shaderProgram.locs.u_objectCount,
+  );
+
+  shaderProgram.lightDataTexture.uploadObjects(
+    gl,
+    [...this.lights],
+    this.materialMap,
+    3,
+    shaderProgram.locs.u_lightData,
+    shaderProgram.locs.u_lightCount,
+  );
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
@@ -99,57 +124,6 @@ function updateUniforms(gl, shaderProgram, scene) {
  * @param {Scene} scene
  */
 function cleanup(gl, scene) {}
-
-/**
- * Pack objects into the object buffer
- * @param {WebGL2RenderingContext} gl
- * @param {RayObject[]} objects
- * @param {RayShaderProgram} shaderProgram
- * @param {Object} [options={}]
- * @param {number} [options.itemSize=RayObject.OBJECT_BYTE_SIZE]
- * @param {number} [options.maxItems=shaderProgram.maxObjects]
- * @param {WebGLBuffer | undefined} [options.targetBuffer=shaderProgram.objectBuffer]
- * @param {string} [options.countUniform="u_objectCount"]
- */
-function packObjects(
-  gl,
-  objects,
-  shaderProgram,
-  materials,
-  {
-    itemSize = RayObject.OBJECT_BYTE_SIZE,
-    transformItemSize = RayObject.OBJECT_TRANSFORM_BYTE_SIZE,
-    maxItems = shaderProgram.maxObjects,
-    targetBuffer = shaderProgram.objectBuffer,
-    targetTransformBuffer = shaderProgram.objectTransformBuffer,
-    countUniform = "u_objectCount",
-  } = {},
-) {
-  const bytes = new ArrayBuffer(itemSize * maxItems);
-  const view = new DataView(bytes);
-
-  const bytesT = new ArrayBuffer(transformItemSize * maxItems);
-  const viewT = new DataView(bytesT);
-
-  for (let i = 0; i < objects.length; i++) {
-    const target = objects[i];
-    target.materialIndex =
-      materials.get(target.materialLabel) ?? target.materialIndex;
-    target.packData(view, i * itemSize);
-    target.packTransformData(viewT, i * transformItemSize);
-  }
-
-  // throw the data into the buffers
-  gl.bindBuffer(gl.UNIFORM_BUFFER, targetBuffer);
-  gl.bufferSubData(gl.UNIFORM_BUFFER, 0, new Uint8Array(bytes));
-  gl.bindBuffer(gl.UNIFORM_BUFFER, null);
-
-  gl.bindBuffer(gl.UNIFORM_BUFFER, targetTransformBuffer);
-  gl.bufferSubData(gl.UNIFORM_BUFFER, 0, new Uint8Array(bytesT));
-  gl.bindBuffer(gl.UNIFORM_BUFFER, null);
-
-  shaderProgram.uniforms[countUniform] = objects.length;
-}
 
 /**
  * Pack materials into the material buffer
@@ -172,27 +146,4 @@ function packMaterials(gl, materials, shaderProgram) {
   gl.bindBuffer(gl.UNIFORM_BUFFER, null);
 
   shaderProgram.uniforms.u_materialCount = materials.length;
-}
-
-/**
- * Pack lights into the light buffer...
- *
- * unsure if this is a light representation like i
- * was using before or we just make these scene objects
- * directional light would be nice to have and idk
- * how you'd get that from an object...
- *
- * Identical to the object packing function so we just call it as a helper
- * @param {*} gl
- * @param {*} lights
- * @param {*} shaderProgram
- * @param {*} materials
- */
-function packLights(gl, lights, shaderProgram, materials) {
-  packObjects(gl, lights, shaderProgram, materials, {
-    targetBuffer: shaderProgram.lightBuffer,
-    targetTransformBuffer: shaderProgram.lightTransformBuffer,
-    maxItems: shaderProgram.maxLights,
-    countUniform: "u_lightCount",
-  });
 }

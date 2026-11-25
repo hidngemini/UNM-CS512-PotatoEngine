@@ -420,30 +420,62 @@ struct ObjectTransformCache {
   mat4 invTransform;
   mat3 invNormalTransform;
 };
+uniform sampler2D u_objectData;
+uniform int u_objectDataWidth;
 
-// block of objects we use to receive information from the
-// js end 
-layout(std140) uniform objectBlock {
-  Object objects[MAX_OBJECTS];
-};
+uniform sampler2D u_lightData;
+uniform int u_lightDataWidth;
 
-layout(std140) uniform objectTransformBlock {
-  ObjectTransformCache objTransformCache[MAX_OBJECTS];
-};
+const int OBJECT_DATA_TEXELS = 5;
+const int TRANSFORM_DATA_TEXELS = 7;
+const int OBJECT_RECORD_TEXELS = OBJECT_DATA_TEXELS + TRANSFORM_DATA_TEXELS;
 
-///////////////////
-// LIGHT CONFIG  //
-///////////////////
+vec4 fetchRecordTexel(
+  sampler2D dataTexture,
+  int textureWidth,
+  int recordIndex,
+  int texelInRecord
+) {
+  int texelIndex = recordIndex * OBJECT_RECORD_TEXELS + texelInRecord;
+  ivec2 coord = ivec2(texelIndex % textureWidth, texelIndex / textureWidth);
 
-// block of lights we use to receive information from the
-// js end, for now we say they are all objects, see below
-layout(std140) uniform lightBlock {
-  Object lights[MAX_LIGHTS];
-};
+  return texelFetch(dataTexture, coord, 0);
+}
 
-layout(std140) uniform lightTransformBlock {
-  ObjectTransformCache lightTransformCache[MAX_LIGHTS];
-};
+Object fetchObject(int index) {
+  vec4 meta = fetchRecordTexel(u_objectData, u_objectDataWidth, index, 0);
+
+  return Object(ivec4(round(meta)), fetchRecordTexel(u_objectData, u_objectDataWidth, index, 1), fetchRecordTexel(u_objectData, u_objectDataWidth, index, 2), fetchRecordTexel(u_objectData, u_objectDataWidth, index, 3), fetchRecordTexel(u_objectData, u_objectDataWidth, index, 4));
+}
+
+Object fetchLight(int index) {
+  vec4 meta = fetchRecordTexel(u_lightData, u_lightDataWidth, index, 0);
+
+  return Object(ivec4(round(meta)), fetchRecordTexel(u_lightData, u_lightDataWidth, index, 1), fetchRecordTexel(u_lightData, u_lightDataWidth, index, 2), fetchRecordTexel(u_lightData, u_lightDataWidth, index, 3), fetchRecordTexel(u_lightData, u_lightDataWidth, index, 4));
+}
+
+ObjectTransformCache fetchTransform(sampler2D dataTexture, int textureWidth, int index) {
+  int base = index * OBJECT_RECORD_TEXELS + OBJECT_DATA_TEXELS;
+
+  vec4 m0 = fetchRecordTexel(dataTexture, textureWidth, index, 5);
+  vec4 m1 = fetchRecordTexel(dataTexture, textureWidth, index, 6);
+  vec4 m2 = fetchRecordTexel(dataTexture, textureWidth, index, 7);
+  vec4 m3 = fetchRecordTexel(dataTexture, textureWidth, index, 8);
+
+  vec4 n0 = fetchRecordTexel(dataTexture, textureWidth, index, 9);
+  vec4 n1 = fetchRecordTexel(dataTexture, textureWidth, index, 10);
+  vec4 n2 = fetchRecordTexel(dataTexture, textureWidth, index, 11);
+
+  return ObjectTransformCache(mat4(m0, m1, m2, m3), mat3(n0.xyz, n1.xyz, n2.xyz));
+}
+
+ObjectTransformCache fetchObjectTransform(int index) {
+  return fetchTransform(u_objectData, u_objectDataWidth, index);
+}
+
+ObjectTransformCache fetchLightTransform(int index) {
+  return fetchTransform(u_lightData, u_lightDataWidth, index);
+}
 
 ///////////////////////////
 // RAY TRACING STRUCTURE //
@@ -813,17 +845,16 @@ bool intersectRect(Rect rect, Ray ray, out float t, out vec3 normal) {
 // transform ray into local space by looking up cached transform
 // note this means we dont need to caclculate inverse all the time
 Ray toObjectSpace(Ray r, int otc, bool light) {
-  mat4 worldToObject;
-
+  ObjectTransformCache cache;
   if(light) {
-    worldToObject = lightTransformCache[otc].invTransform;
+    cache = fetchLightTransform(otc);
   } else {
-    worldToObject = objTransformCache[otc].invTransform;
+    cache = fetchObjectTransform(otc);
   }
 
   Ray localRay;
-  localRay.origin = (worldToObject * vec4(r.origin, 1.0f)).xyz;
-  localRay.direction = (worldToObject * vec4(r.direction, 0.0f)).xyz;
+  localRay.origin = (cache.invTransform * vec4(r.origin, 1.0f)).xyz;
+  localRay.direction = (cache.invTransform * vec4(r.direction, 0.0f)).xyz;
 
   return localRay;
 }
@@ -832,15 +863,14 @@ Ray toObjectSpace(Ray r, int otc, bool light) {
 // note that we must normalize the new world normal and actually 
 // multipy in the right order lol that took so long to see
 vec3 localToWorldNormal(vec3 normal, int otc, bool light) {
-  mat3 normalTrans;
-
+  ObjectTransformCache cache;
   if(light) {
-    normalTrans = lightTransformCache[otc].invNormalTransform;
+    cache = fetchLightTransform(otc);
   } else {
-    normalTrans = objTransformCache[otc].invNormalTransform;
+    cache = fetchObjectTransform(otc);
   }
 
-  return normalize(normalTrans * normal);
+  return normalize(cache.invNormalTransform * normal);
 }
 
 // switch on the object type and select the correct one from above
@@ -990,13 +1020,14 @@ HitData traceScene(Ray ray, bool includeLight) {
 
   if(includeLight) {
     for(int i = 0; i < u_lightCount; ++i) {
-      HitData candidate = calculateHit(lights[i], ray, i, true);
+      Object light = fetchLight(i);
+      HitData candidate = calculateHit(light, ray, i, true);
       candidate.normal = vec3(0.0f);
       // set power, calculate influence on color later
-      candidate.lightPower = lights[i].options.w;
+      candidate.lightPower = light.options.w;
       if(candidate.hit && candidate.t < hit.t) {
         hit = candidate;
-        target = lights[i];
+        target = light;
       }
     }
   }
@@ -1004,13 +1035,14 @@ HitData traceScene(Ray ray, bool includeLight) {
   // keep the closest hit in the scene 
   // wonder if we can depth sort objects to make faster?
   for(int i = 0; i < u_objectCount; ++i) {
-    if(!includeLight && objects[i].meta.z < 0) {
+    Object object = fetchObject(i);
+    if(!includeLight && object.meta.z < 0) {
       continue;
     }
-    HitData candidate = calculateHit(objects[i], ray, i, false);
+    HitData candidate = calculateHit(object, ray, i, false);
     if(candidate.hit && candidate.t < hit.t) {
       hit = candidate;
-      target = objects[i];
+      target = object;
     }
   }
 
@@ -1260,7 +1292,7 @@ vec3 trace(Ray ray, int sampleNum) {
     vec3 directLightColor = vec3(0.f);
 
     for(int i = 0; i < u_lightCount; i++) {
-      Object light = lights[i];
+      Object light = fetchLight(i);
 
       vec3 shadowColor = traceShadow(hit, light, sampleNum, i);
 

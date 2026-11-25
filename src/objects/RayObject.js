@@ -45,6 +45,10 @@ export default class RayObject extends SceneObject {
   // can bump max objects a bit if we optimize this.
   static OBJECT_TRANSFORM_BYTE_SIZE = 112;
 
+  static OBJECT_TEXTURE_FLOATS =
+    (RayObject.OBJECT_BYTE_SIZE + RayObject.OBJECT_TRANSFORM_BYTE_SIZE) / 4;
+  static OBJECT_TEXTURE_TEXELS = RayObject.OBJECT_TEXTURE_FLOATS / 4;
+
   static EDITOR_PROPERTIES = [
     { name: "position", type: TYPE_3TUPLE_SELECTOR },
     { name: "rotation", type: TYPE_3TUPLE_SELECTOR },
@@ -428,6 +432,31 @@ export default class RayObject extends SceneObject {
         );
       }
       view.setFloat32(offset + 64 + col * 16 + 12, 0, true); // padding
+    }
+  }
+
+  /**
+   * pack the object directly into a float32 array (texture)
+   *
+   * @param {Float32Array} out
+   * @param {number} floatOffset
+   */
+  packTextureData(out, floatOffset) {
+    const recordBytes =
+      RayObject.OBJECT_BYTE_SIZE + RayObject.OBJECT_TRANSFORM_BYTE_SIZE;
+
+    const bytes = new ArrayBuffer(recordBytes);
+    const view = new DataView(bytes);
+
+    this.packData(view, 0);
+    this.packTransformData(view, RayObject.OBJECT_BYTE_SIZE);
+
+    for (let i = 0; i < 4; i++) {
+      out[floatOffset + i] = view.getInt32(i * 4, true);
+    }
+
+    for (let byteOffset = 16; byteOffset < recordBytes; byteOffset += 4) {
+      out[floatOffset + byteOffset / 4] = view.getFloat32(byteOffset, true);
     }
   }
 

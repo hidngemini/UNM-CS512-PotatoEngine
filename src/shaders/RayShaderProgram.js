@@ -7,10 +7,9 @@ import {
   TYPE_READ_ONLY,
   TYPE_SHADER_PROGRAM_UNIFORMS,
 } from "../controls/sceneEditor";
-import Light, { LIGHT_DIRECTIONAL, LIGHT_SPOT } from "../lights/Light";
 import { RayMaterial } from "../materials";
-import { RayObject, SceneObject } from "../objects";
-import { transformPoint } from "../util/transformations";
+import DataTexture from "../materials/DataTexture";
+import { RayObject, SceneObject } from "../objects"
 import ShaderProgram from "./ShaderProgram";
 
 /**
@@ -66,6 +65,7 @@ export default class RayShaderProgram extends ShaderProgram {
       },
     },
   ];
+
   /**
    * Create a new shader program
    *
@@ -92,11 +92,10 @@ export default class RayShaderProgram extends ShaderProgram {
     this.hasLight = hasLight;
     this.hasMaterial = hasMaterial;
 
-    this.lightBuffer = undefined;
-    this.objectBuffer = undefined;
+
+    this.objectDataTexture = undefined;
+    this.lightDataTexture = undefined;
     this.materialBuffer = undefined;
-    this.objectTransformBuffer = undefined;
-    this.lightTransformBuffer = undefined;
 
     this.maxLights = 146;
     this.maxObjects = 146;
@@ -136,7 +135,11 @@ export default class RayShaderProgram extends ShaderProgram {
       "u_cameraOrbit",
       "u_target",
       "u_objectCount",
+      "u_objectData",
+      "u_objectDataWidth",
       "u_lightCount",
+      "u_lightData",
+      "u_lightDataWidth",
       "u_materialCount",
       "u_raySamples",
       "u_maxShadowLayers",
@@ -179,6 +182,9 @@ export default class RayShaderProgram extends ShaderProgram {
     this.maxMaterials = Math.floor(
       maxBlockBytes / RayMaterial.MATERIAL_BYTE_SIZE,
     );
+
+    this.objectDataTexture = new DataTexture(gl);
+    this.lightDataTexture = new DataTexture(gl);
 
     this._initBuffers(gl);
   }
