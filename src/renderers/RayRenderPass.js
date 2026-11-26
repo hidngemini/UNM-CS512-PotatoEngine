@@ -213,13 +213,17 @@ export default class RayRenderPass extends RenderPass {
       }
     }
 
-    gl.uniform1i(shaderProgram.locs.u_objectData, seenTextures.size);
+    // NOTE: make sure to reserve slots for the texture array and 
+    // the procedural textures even if no material uses them currently
+    const textureSlot = Math.max(seenTextures.size, 2)
+
+    gl.uniform1i(shaderProgram.locs.u_objectData, textureSlot);
     gl.uniform1i(
       shaderProgram.locs.u_objectDataWidth,
       shaderProgram.objectDataTexture.width,
     );
 
-    gl.uniform1i(shaderProgram.locs.u_lightData, seenTextures.size + 1);
+    gl.uniform1i(shaderProgram.locs.u_lightData, textureSlot + 1);
     gl.uniform1i(
       shaderProgram.locs.u_lightDataWidth,
       shaderProgram.lightDataTexture.width,
@@ -229,7 +233,7 @@ export default class RayRenderPass extends RenderPass {
       gl,
       [...this.objects],
       this.materialMap,
-      seenTextures.size,
+      textureSlot,
       shaderProgram.locs.u_objectData,
       shaderProgram.locs.u_objectCount,
     );
@@ -238,7 +242,7 @@ export default class RayRenderPass extends RenderPass {
       gl,
       [...this.lights],
       this.materialMap,
-      seenTextures.size + 1,
+      textureSlot + 1,
       shaderProgram.locs.u_lightData,
       shaderProgram.locs.u_lightCount,
     );
@@ -246,7 +250,7 @@ export default class RayRenderPass extends RenderPass {
     shaderProgram.materialDataTexture.uploadMaterials(
       gl,
       this.materials,
-      seenTextures.size + 2,
+      textureSlot + 2,
       shaderProgram.locs.u_materialData,
       shaderProgram.locs.u_materialCount,
       shaderProgram.locs.u_materialDataWidth,
