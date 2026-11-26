@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Dancer</title>
+  <script defer src="../../dist/dancer/bundle.js"></script>
+
+  <link href="/common/navbar.css" rel="stylesheet">
+  <script defer src="/common/navbar.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-surface">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/">UNM CS 512</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown"
+        aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNavDropdown">
+        <ul class="navbar-nav">
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button"
+              data-bs-toggle="dropdown" aria-expanded="false">
+              Homework
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink" id="dropdown-homework"></ul>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button"
+              data-bs-toggle="dropdown" aria-expanded="false">
+              Side Projects
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink" id="dropdown-projects"></ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+  <div class="app-container">
+    <!-- shader editors -->
+    <div class="column-editors">
+      <div class="editor-card">
+        <b>Vertex Shader</b>
+        <textarea id="vertEditor"></textarea>
+      </div>
+      <div class="editor-card">
+        <b>Fragment Shader</b>
+        <textarea id="fragEditor"></textarea>
+      </div>
+    </div>
+
+    <!-- webgl canvas -->
+    <div class="column-viewer">
+      <div class="canvas-card">
+        <canvas id="glcanvas" width="480" height="360"></canvas>
+      </div>
+      <p class="instructions">Drag to rotate · arrow keys pan · W/S zoom <br> Thanks to the following people on YouTube for their amazing solos! <br> - LaNxtalie<br> - 현추 (Hyeonchu)<br> - imlisarhee<br>They all did an amazing job with their solo covers!</p>
+    </div>
+
+    <!-- video + controls -->
+    <div class="column-controls">
+      <div class="options">
+        <div class="options-group-title">Dance Video</div>
+        
+        <!-- saved dances -->
+        <select id="danceSelect">
+          <option value="">-- Choose a saved dance --</option>
+          <option value="./savedDances/jellyous.mp4">ILLIT - Jellyous [performed by LaNxtalie]</option>
+          <option value="./savedDances/fearless.mp4">LE SSERAFIM - FEARLESS [performed by 현추]</option>
+          <option value="./savedDances/magnetic.mp4">ILLIT - MAGNETIC [performed by imlisarhee]</option>
+          <option value="./savedDances/antifragile.mp4">LE SSERAFIM - ANTIFRAGILE [performed by imlisarhee]</option>
+          <option value="./savedDances/spaghetti.mp4">LE SSERAFIM - SPAGHETTI [performed by LaNxtalie]</option>
+        </select>
+        <div class="upload-label">Or upload your own file:</div>
+        
+        <input type="file" id="videoFile" accept="video/mp4,video/*">
+        <div id="status">Loading pose model…</div>
+        <div class="media-box">
+          <video id="video" controls loop playsinline></video>
+          <canvas id="overlay" width="320" height="240"></canvas>
+        </div>
+
+        <div class="options-group-title">Tracking</div>
+        <div class="control-row">
+          <label>Smoothing</label>
+          <div class="slider-container">
+            <input type="range" min="0" max="0.9" value="0.5" step="0.05" id="smoothing">
+          </div>
+        </div>
+        <div class="control-row">
+          <label for="rotTorso">Rotate torso</label>
+          <input type="checkbox" id="rotTorso" checked>
+        </div>
+        <div class="control-row">
+          <label for="mirror">Learning Mode (Mirror)</label>
+          <input type="checkbox" id="mirror">
+        </div>
+        <div class="control-row">
+          <label for="invertDepth">Invert depth</label>
+          <input type="checkbox" id="invertDepth">
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
